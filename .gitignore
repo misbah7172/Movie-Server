@@ -1,0 +1,43 @@
+# dependencies
+/node_modules
+/.pnpm
+/.yarn
+
+# next.js build outputs
+/.next/
+/out/
+
+# production
+/build
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Storage media files (keep directory structure)
+/storage/movies/*
+!/storage/movies/.gitkeep
+/storage/posters/*
+!/storage/posters/.gitkeep
+/storage/backdrops/*
+!/storage/backdrops/.gitkeep
+/storage/trailers/*
+!/storage/trailers/.gitkeep
+/storage/subtitles/*
+!/storage/subtitles/.gitkeep
