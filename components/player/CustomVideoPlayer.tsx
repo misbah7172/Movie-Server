@@ -7,30 +7,34 @@ import { AuthService } from "../../lib/auth";
 import {
   Play,
   Pause,
-  RotateCcw,
-  RotateCw,
   Volume2,
   VolumeX,
   Maximize,
   Minimize,
-  PictureInPicture2,
-  Subtitles,
-  Settings,
   ArrowLeft,
-  SlidersHorizontal,
+  Settings,
+  Subtitles,
+  RotateCcw,
+  RotateCw,
+  PictureInPicture,
+  Film,
+  UploadCloud,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 
 interface CustomVideoPlayerProps {
   movie: Movie;
-  initialTime?: number;
 }
 
-export function CustomVideoPlayer({ movie, initialTime = 0 }: CustomVideoPlayerProps) {
+export function CustomVideoPlayer({ movie }: CustomVideoPlayerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const initialTime = parseFloat(searchParams.get("t") || "0");
+
   const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -40,22 +44,19 @@ export function CustomVideoPlayer({ movie, initialTime = 0 }: CustomVideoPlayerP
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [selectedSubtitle, setSelectedSubtitle] = useState<string>("off");
-  const [selectedAudio, setSelectedAudio] = useState<string>("eng");
+  const [hasError, setHasError] = useState(false);
+
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showSubtitleMenu, setShowSubtitleMenu] = useState(false);
   const [showAudioMenu, setShowAudioMenu] = useState(false);
 
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [subtitles, setSubtitles] = useState<Subtitle[]>(movie.subtitles || []);
+  const [activeSubtitle, setActiveSubtitle] = useState<string | null>(null);
 
-  // Sync initial playback position from URL ?t= param or saved history
+  // Resume playback from initial timestamp parameter
   useEffect(() => {
-    const urlTime = searchParams.get("t");
-    const startTime = urlTime ? parseFloat(urlTime) : initialTime;
-
-    if (videoRef.current && startTime > 0) {
-      videoRef.current.currentTime = startTime;
-      setCurrentTime(startTime);
+    if (videoRef.current && initialTime > 0) {
+      videoRef.current.currentTime = initialTime;
     }
   }, [searchParams, initialTime]);
 
@@ -149,8 +150,14 @@ export function CustomVideoPlayer({ movie, initialTime = 0 }: CustomVideoPlayerP
   const togglePlay = () => {
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
-      videoRef.current.play();
-      setIsPlaying(true);
+      videoRef.current.play().then(() => {
+        setIsPlaying(true);
+        setHasError(false);
+      }).catch((err) => {
+        console.warn("Playback error:", err);
+        setHasError(true);
+        setIsPlaying(false);
+      });
     } else {
       videoRef.current.pause();
       setIsPlaying(false);
@@ -183,7 +190,7 @@ export function CustomVideoPlayer({ movie, initialTime = 0 }: CustomVideoPlayerP
   const toggleMute = () => {
     if (!videoRef.current) return;
     if (isMuted) {
-      videoRef.current.volume = volume || 0.8;
+      videoRef.current.volume = volume || 0.5;
       setIsMuted(false);
     } else {
       videoRef.current.volume = 0;
@@ -191,7 +198,7 @@ export function CustomVideoPlayer({ movie, initialTime = 0 }: CustomVideoPlayerP
     }
   };
 
-  const handleSpeedChange = (speed: number) => {
+  const changePlaybackSpeed = (speed: number) => {
     if (!videoRef.current) return;
     videoRef.current.playbackRate = speed;
     setPlaybackSpeed(speed);
@@ -244,6 +251,7 @@ export function CustomVideoPlayer({ movie, initialTime = 0 }: CustomVideoPlayerP
         src={`/api/stream/${movie.id}`}
         className="w-full h-full object-contain cursor-pointer"
         onClick={togglePlay}
+        onError={() => setHasError(true)}
         onTimeUpdate={() => {
           if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
         }}
@@ -254,6 +262,36 @@ export function CustomVideoPlayer({ movie, initialTime = 0 }: CustomVideoPlayerP
         playsInline
       />
 
+      {/* Media Stream Unavailable Overlay */}
+      {hasError && (
+        <div className="absolute inset-0 bg-black/95 z-40 flex flex-col items-center justify-center p-6 text-center space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-red-950/60 border border-red-500/40 text-red-400 flex items-center justify-center shadow-2xl">
+            <Film className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-extrabold text-white uppercase tracking-tight">
+            Media Stream Unavailable
+          </h2>
+          <p className="text-sm text-zinc-400 max-w-md leading-relaxed">
+            The video binary for <span className="text-white font-semibold">&quot;{movie.title}&quot;</span> was not found in PostgreSQL database storage. Please re-upload this movie file in the Admin Dashboard.
+          </p>
+          <div className="flex items-center space-x-4 pt-2">
+            <button
+              onClick={() => router.back()}
+              className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs rounded-xl"
+            >
+              Back to Catalog
+            </button>
+            <Link
+              href="/admin"
+              className="px-5 py-2.5 bg-[#E50914] hover:bg-[#B81D24] text-white font-bold text-xs rounded-xl shadow-lg shadow-[#E50914]/40 flex items-center space-x-2"
+            >
+              <UploadCloud className="w-4 h-4" />
+              <span>Go to Admin Upload</span>
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Top Header Bar (Back button & Title) */}
       <AnimatePresence>
         {showControls && (
@@ -261,37 +299,39 @@ export function CustomVideoPlayer({ movie, initialTime = 0 }: CustomVideoPlayerP
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute top-0 left-0 right-0 p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent z-40 flex items-center justify-between"
+            className="absolute top-0 left-0 right-0 p-6 bg-gradient-to-b from-black/90 via-black/50 to-transparent flex items-center justify-between z-30"
           >
             <button
               onClick={() => router.back()}
-              className="flex items-center space-x-3 text-zinc-200 hover:text-[#E50914] transition-colors"
+              className="flex items-center space-x-2 text-white hover:text-[#E50914] transition-colors group"
             >
-              <div className="p-2.5 rounded-full glass-panel">
-                <ArrowLeft className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-white tracking-wide">{movie.title}</h2>
-                <p className="text-xs text-zinc-400">
-                  {movie.resolution} • {movie.codec} • {movie.release_year}
-                </p>
-              </div>
+              <ArrowLeft className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
+              <span className="text-sm font-semibold uppercase tracking-wider">Back</span>
             </button>
+
+            <div className="text-center">
+              <h2 className="text-lg font-bold text-white tracking-wide uppercase">{movie.title}</h2>
+              <p className="text-xs text-zinc-400 font-medium">
+                {movie.resolution} • {movie.codec} • {movie.language}
+              </p>
+            </div>
+
+            <div className="w-20" />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Bottom Floating Control Bar */}
+      {/* Player Control Overlay */}
       <AnimatePresence>
         {showControls && (
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 30 }}
-            className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 bg-gradient-to-t from-black/95 via-black/60 to-transparent z-40 space-y-4"
+            exit={{ opacity: 0, y: 20 }}
+            className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 via-black/60 to-transparent space-y-3 z-30"
           >
-            {/* Range Seek Scrub Slider */}
-            <div className="relative group">
+            {/* Timeline Progress Scrub Bar */}
+            <div className="relative group flex items-center">
               <input
                 type="range"
                 min={0}
@@ -299,53 +339,37 @@ export function CustomVideoPlayer({ movie, initialTime = 0 }: CustomVideoPlayerP
                 step={0.1}
                 value={currentTime}
                 onChange={handleSeek}
-                className="w-full h-1.5 bg-zinc-700/60 rounded-lg appearance-none cursor-pointer accent-[#E50914] focus:outline-none"
+                className="w-full h-1.5 bg-zinc-700/80 rounded-lg appearance-none cursor-pointer accent-[#E50914] focus:outline-none group-hover:h-2.5 transition-all"
               />
-              <div className="flex justify-between text-xs text-zinc-400 mt-1 font-mono">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
-              </div>
+              <div
+                className="absolute left-0 h-1.5 group-hover:h-2.5 bg-[#E50914] rounded-lg pointer-events-none transition-all"
+                style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+              />
             </div>
 
-            {/* Controls Bar Row */}
+            {/* Controls Bar */}
             <div className="flex items-center justify-between">
-              {/* Left Play/Pause/Skip Controls */}
               <div className="flex items-center space-x-4">
+                {/* Play / Pause Toggle */}
                 <button
                   onClick={togglePlay}
-                  className="p-3 bg-[#E50914] hover:bg-[#B81D24] text-white rounded-full shadow-lg shadow-[#E50914]/50 transition-transform transform active:scale-95"
+                  className="p-2 text-white hover:text-[#E50914] transition-colors transform hover:scale-110"
                 >
-                  {isPlaying ? (
-                    <Pause className="w-6 h-6 fill-white" />
-                  ) : (
-                    <Play className="w-6 h-6 fill-white ml-0.5" />
-                  )}
+                  {isPlaying ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current" />}
                 </button>
 
-                <button
-                  onClick={() => skip(-10)}
-                  className="p-2 text-zinc-300 hover:text-white transition-colors"
-                  title="Skip -10s"
-                >
+                {/* Skip Buttons */}
+                <button onClick={() => skip(-10)} className="text-zinc-300 hover:text-white transition-colors" title="Rewind 10s">
                   <RotateCcw className="w-5 h-5" />
                 </button>
-
-                <button
-                  onClick={() => skip(10)}
-                  className="p-2 text-zinc-300 hover:text-white transition-colors"
-                  title="Skip +10s"
-                >
+                <button onClick={() => skip(10)} className="text-zinc-300 hover:text-white transition-colors" title="Forward 10s">
                   <RotateCw className="w-5 h-5" />
                 </button>
 
                 {/* Volume Slider */}
                 <div className="flex items-center space-x-2 group">
-                  <button onClick={toggleMute} className="p-2 text-zinc-300 hover:text-white">
-                    {isMuted || volume === 0 ? (
-                      <VolumeX className="w-5 h-5 text-red-500" />
-                    ) : (
-                      <Volume2 className="w-5 h-5" />
-                    )}
+                  <button onClick={toggleMute} className="text-zinc-300 hover:text-white">
+                    {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                   </button>
                   <input
                     type="range"
@@ -354,29 +378,35 @@ export function CustomVideoPlayer({ movie, initialTime = 0 }: CustomVideoPlayerP
                     step={0.05}
                     value={isMuted ? 0 : volume}
                     onChange={(e) => changeVolume(parseFloat(e.target.value))}
-                    className="w-20 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#E50914]"
+                    className="w-16 h-1 bg-zinc-700 rounded appearance-none accent-[#E50914] cursor-pointer"
                   />
+                </div>
+
+                {/* Time Display */}
+                <div className="text-xs font-mono text-zinc-300">
+                  <span>{formatTime(currentTime)}</span>
+                  <span className="text-zinc-500 mx-1">/</span>
+                  <span>{formatTime(duration)}</span>
                 </div>
               </div>
 
-              {/* Right Menu & Feature Buttons */}
-              <div className="flex items-center space-x-4 relative">
+              <div className="flex items-center space-x-3 relative">
                 {/* Speed Selector */}
                 <div className="relative">
                   <button
                     onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                    className="px-2.5 py-1 text-xs font-bold text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-700 rounded-md"
+                    className="px-2 py-1 bg-zinc-800/80 hover:bg-zinc-700 rounded text-xs font-bold text-zinc-300"
                   >
                     {playbackSpeed}x
                   </button>
                   {showSpeedMenu && (
-                    <div className="absolute bottom-10 right-0 w-28 glass-panel rounded-xl py-1 text-xs z-50">
-                      {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
+                    <div className="absolute bottom-10 right-0 bg-zinc-900 border border-zinc-700 rounded-xl p-2 space-y-1 w-24 shadow-2xl z-50">
+                      {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) => (
                         <button
                           key={s}
-                          onClick={() => handleSpeedChange(s)}
-                          className={`w-full px-3 py-1.5 text-left hover:bg-[#E50914] hover:text-white ${
-                            playbackSpeed === s ? "text-[#E50914] font-bold" : "text-zinc-300"
+                          onClick={() => changePlaybackSpeed(s)}
+                          className={`w-full text-left px-3 py-1.5 rounded text-xs font-semibold ${
+                            playbackSpeed === s ? "bg-[#E50914] text-white" : "text-zinc-300 hover:bg-zinc-800"
                           }`}
                         >
                           {s}x
@@ -386,46 +416,13 @@ export function CustomVideoPlayer({ movie, initialTime = 0 }: CustomVideoPlayerP
                   )}
                 </div>
 
-                {/* Subtitle Selector */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowSubtitleMenu(!showSubtitleMenu)}
-                    className="p-2 text-zinc-300 hover:text-white"
-                    title="Subtitles"
-                  >
-                    <Subtitles className="w-5 h-5" />
-                  </button>
-                  {showSubtitleMenu && (
-                    <div className="absolute bottom-10 right-0 w-36 glass-panel rounded-xl py-1 text-xs z-50">
-                      <button
-                        onClick={() => {
-                          setSelectedSubtitle("off");
-                          setShowSubtitleMenu(false);
-                        }}
-                        className="w-full px-3 py-1.5 text-left text-zinc-300 hover:bg-[#E50914]"
-                      >
-                        Off
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedSubtitle("en");
-                          setShowSubtitleMenu(false);
-                        }}
-                        className="w-full px-3 py-1.5 text-left text-zinc-300 hover:bg-[#E50914]"
-                      >
-                        English [CC]
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* PiP */}
-                <button onClick={togglePiP} className="p-2 text-zinc-300 hover:text-white" title="Picture in Picture">
-                  <PictureInPicture2 className="w-5 h-5" />
+                {/* Picture in Picture */}
+                <button onClick={togglePiP} className="text-zinc-300 hover:text-white" title="Picture in Picture">
+                  <PictureInPicture className="w-5 h-5" />
                 </button>
 
-                {/* Fullscreen */}
-                <button onClick={toggleFullscreen} className="p-2 text-zinc-300 hover:text-white" title="Fullscreen">
+                {/* Fullscreen Toggle */}
+                <button onClick={toggleFullscreen} className="text-zinc-300 hover:text-white" title="Toggle Fullscreen">
                   {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
                 </button>
               </div>
