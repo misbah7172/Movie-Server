@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { MovieService } from "@/services/movie-service";
-import { CustomVideoPlayer } from "@/components/player/CustomVideoPlayer";
+import { MovieService } from "../../../services/movie-service";
+import { CustomVideoPlayer } from "../../../components/player/CustomVideoPlayer";
 import { notFound } from "next/navigation";
 
 export default async function WatchPage({ params }: { params: Promise<{ id: string }> }) {

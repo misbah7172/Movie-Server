@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AuthService } from "@/lib/auth";
+import { AuthService } from "../../lib/auth";
 import { Play, LogIn, Mail, Lock, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 

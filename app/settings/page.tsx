@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Navbar } from "@/components/layout/navbar";
-import { Settings, Moon, Globe, Play, Volume2, HardDrive, ShieldCheck } from "lucide-react";
+import { Navbar } from "../../components/layout/navbar";
+import { Settings } from "lucide-react";
 
 export default function SettingsPage() {
   const [autoplay, setAutoplay] = useState(true);
@@ -33,7 +33,6 @@ export default function SettingsPage() {
         </div>
 
         <form onSubmit={handleSave} className="glass-panel p-8 rounded-2xl border border-zinc-800 space-y-6">
-          {/* Autoplay toggle */}
           <div className="flex items-center justify-between py-3 border-b border-zinc-800">
             <div>
               <p className="font-bold text-white text-sm">Autoplay Videos</p>
@@ -47,7 +46,6 @@ export default function SettingsPage() {
             />
           </div>
 
-          {/* Subtitle Preference */}
           <div className="flex items-center justify-between py-3 border-b border-zinc-800">
             <div>
               <p className="font-bold text-white text-sm">Default Subtitle Language</p>
@@ -65,7 +63,6 @@ export default function SettingsPage() {
             </select>
           </div>
 
-          {/* Playback Speed */}
           <div className="flex items-center justify-between py-3 border-b border-zinc-800">
             <div>
               <p className="font-bold text-white text-sm">Default Playback Speed</p>
@@ -83,7 +80,6 @@ export default function SettingsPage() {
             </select>
           </div>
 
-          {/* Storage Directory Path */}
           <div className="py-3 border-b border-zinc-800 space-y-2">
             <p className="font-bold text-white text-sm">Local Storage Path</p>
             <p className="text-xs text-zinc-400">Root folder on media server where video files are located</p>

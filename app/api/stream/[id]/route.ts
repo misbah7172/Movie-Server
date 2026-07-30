@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MovieService } from "@/services/movie-service";
+import { MovieService } from "../../../../services/movie-service";
 import fs from "fs";
 import path from "path";
 

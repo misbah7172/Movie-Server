@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { AuthService, AuthUser } from "@/lib/auth";
+import { AuthService, AuthUser } from "../../lib/auth";
 import {
   Play,
   Search,
@@ -18,7 +18,6 @@ import {
   LogOut,
   Menu,
   X,
-  Tv,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -69,7 +68,6 @@ export function Navbar() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-        {/* Brand & Left Links */}
         <div className="flex items-center space-x-8">
           <Link href="/" className="flex items-center space-x-2.5 group">
             <div className="w-9 h-9 rounded-lg bg-[#E50914] flex items-center justify-center shadow-md shadow-[#E50914]/40 group-hover:scale-105 transition-transform">
@@ -80,7 +78,6 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center space-x-6">
             {navLinks.map((link) => {
               const active = pathname === link.href;
@@ -100,9 +97,7 @@ export function Navbar() {
           </nav>
         </div>
 
-        {/* Right Action Bar (Search + Profile) */}
         <div className="hidden md:flex items-center space-x-4">
-          {/* Instant Search Bar */}
           <form onSubmit={handleSearchSubmit} className="relative">
             <input
               type="text"
@@ -114,7 +109,6 @@ export function Navbar() {
             <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2" />
           </form>
 
-          {/* Admin Dashboard Badge */}
           {user?.role === "admin" && (
             <Link
               href="/admin"
@@ -125,7 +119,6 @@ export function Navbar() {
             </Link>
           )}
 
-          {/* User Menu Dropdown */}
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -199,7 +192,6 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Toggle Button */}
         <div className="md:hidden flex items-center space-x-3">
           <Link href="/search" className="text-zinc-300 p-2">
             <Search className="w-5 h-5" />
@@ -213,7 +205,6 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Drawer Menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div

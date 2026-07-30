@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/layout/navbar";
-import { HeroBanner } from "@/components/hero/HeroBanner";
-import { HorizontalScrollRow } from "@/components/rows/HorizontalScrollRow";
-import { ContinueWatchingCard } from "@/components/cards/ContinueWatchingCard";
-import { MovieService } from "@/services/movie-service";
-import { AuthService } from "@/lib/auth";
-import { Movie, WatchHistory, Collection } from "@/types/database";
-import { Sparkles, Layers, History, Dices } from "lucide-react";
+import { Navbar } from "../components/layout/navbar";
+import { HeroBanner } from "../components/hero/HeroBanner";
+import { HorizontalScrollRow } from "../components/rows/HorizontalScrollRow";
+import { ContinueWatchingCard } from "../components/cards/ContinueWatchingCard";
+import { AuthService } from "../lib/auth";
+import { Movie, WatchHistory, Collection } from "../types/database";
+import { Layers, History, Dices } from "lucide-react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 
 export default function HomePage() {
   const [featuredMovie, setFeaturedMovie] = useState<Movie | null>(null);
@@ -21,22 +19,33 @@ export default function HomePage() {
 
   useEffect(() => {
     async function loadHomeData() {
-      const allMovies = await MovieService.getAllMovies();
-      const allCols = await MovieService.getAllCollections();
-      const user = AuthService.getCurrentUserSync();
+      try {
+        const [moviesRes, colsRes] = await Promise.all([
+          fetch("/api/movies").then((r) => r.json()),
+          fetch("/api/collections").then((r) => r.json()),
+        ]);
 
-      setMovies(allMovies);
-      if (allMovies.length > 0) {
-        setFeaturedMovie(allMovies[0]);
-      }
-      setCollections(allCols);
+        const allMovies: Movie[] = moviesRes.movies || [];
+        const allCols: Collection[] = colsRes.collections || [];
 
-      if (user) {
-        const hist = await MovieService.getUserWatchHistory(user.id);
-        const inProgress = hist.filter((h) => !h.completed && h.progress_seconds > 5);
-        setContinueWatching(inProgress);
+        setMovies(allMovies);
+        if (allMovies.length > 0) {
+          setFeaturedMovie(allMovies[0]);
+        }
+        setCollections(allCols);
+
+        const user = AuthService.getCurrentUserSync();
+        if (user) {
+          const histRes = await fetch(`/api/history?userId=${user.id}`).then((r) => r.json());
+          const hist: WatchHistory[] = histRes.history || [];
+          const inProgress = hist.filter((h) => !h.completed && h.progress_seconds > 5);
+          setContinueWatching(inProgress);
+        }
+      } catch (err) {
+        console.error("Error loading home page data:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
 
     loadHomeData();
@@ -67,12 +76,9 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#08080a] text-white">
       <Navbar />
 
-      {/* Hero Banner Section */}
-      {featuredMovie && <HeroBanner movie={featuredMovie} />}
+      <HeroBanner movie={featuredMovie!} />
 
-      {/* Main Streaming Rows */}
       <main className="relative z-20 max-w-7xl mx-auto space-y-8 pb-20 -mt-10 sm:-mt-16">
-        {/* Random Recommendation Floating Bar */}
         <div className="px-4 sm:px-6 lg:px-8 flex justify-end">
           <button
             onClick={handleRandomRecommendation}
@@ -83,7 +89,6 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* Continue Watching Row */}
         {continueWatching.length > 0 && (
           <div className="px-4 sm:px-6 lg:px-8 space-y-3">
             <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center space-x-2">
@@ -98,14 +103,12 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Recently Added Row */}
         <HorizontalScrollRow
           title="Recently Added"
           subtitle="Latest uploads on your storage server"
           movies={movies}
         />
 
-        {/* Curated Collections Row */}
         {collections.length > 0 && (
           <div className="px-4 sm:px-6 lg:px-8 space-y-4 my-8">
             <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center space-x-2">
@@ -137,7 +140,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Sci-Fi & Cyberpunk Row */}
         {sciFiMovies.length > 0 && (
           <HorizontalScrollRow
             title="Sci-Fi & Space Exploration"
@@ -146,7 +148,6 @@ export default function HomePage() {
           />
         )}
 
-        {/* Action & Thriller Row */}
         {actionMovies.length > 0 && (
           <HorizontalScrollRow
             title="High-Octane Action"

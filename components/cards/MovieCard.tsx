@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Movie } from "@/types/database";
+import { Movie } from "../../types/database";
 import { Play, Heart, Star, Clock, Info } from "lucide-react";
 import { motion } from "framer-motion";
 

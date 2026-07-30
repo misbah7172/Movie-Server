@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MovieService } from "@/services/movie-service";
-import { extractMediaMetadata } from "@/lib/ffmpeg/probe";
+import { MovieService } from "../../../services/movie-service";
+import { extractMediaMetadata } from "../../../lib/ffmpeg/probe";
 import fs from "fs";
 import path from "path";
 

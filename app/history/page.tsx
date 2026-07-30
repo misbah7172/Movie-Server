@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/layout/navbar";
-import { ContinueWatchingCard } from "@/components/cards/ContinueWatchingCard";
-import { MovieService } from "@/services/movie-service";
-import { AuthService } from "@/lib/auth";
-import { WatchHistory } from "@/types/database";
-import { History, Trash2 } from "lucide-react";
+import { Navbar } from "../../components/layout/navbar";
+import { ContinueWatchingCard } from "../../components/cards/ContinueWatchingCard";
+import { AuthService } from "../../lib/auth";
+import { WatchHistory } from "../../types/database";
+import { History } from "lucide-react";
 
 export default function WatchHistoryPage() {
   const [history, setHistory] = useState<WatchHistory[]>([]);
@@ -15,8 +14,12 @@ export default function WatchHistoryPage() {
     async function loadHist() {
       const user = AuthService.getCurrentUserSync();
       if (user) {
-        const h = await MovieService.getUserWatchHistory(user.id);
-        setHistory(h);
+        try {
+          const res = await fetch(`/api/history?userId=${user.id}`).then((r) => r.json());
+          setHistory(res.history || []);
+        } catch (err) {
+          console.error("Error loading watch history:", err);
+        }
       }
     }
     loadHist();

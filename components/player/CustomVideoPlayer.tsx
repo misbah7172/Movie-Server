@@ -2,9 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Movie, Subtitle } from "@/types/database";
-import { MovieService } from "@/services/movie-service";
-import { AuthService } from "@/lib/auth";
+import { Movie, Subtitle } from "../../types/database";
+import { AuthService } from "../../lib/auth";
 import {
   Play,
   Pause,
@@ -86,7 +85,16 @@ export function CustomVideoPlayer({ movie, initialTime = 0 }: CustomVideoPlayerP
         const curr = videoRef.current.currentTime;
         const dur = videoRef.current.duration || duration;
         if (curr > 2) {
-          MovieService.updateWatchHistory(user.id, movie.id, curr, dur);
+          fetch("/api/history", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user.id,
+              movieId: movie.id,
+              progressSeconds: curr,
+              durationSeconds: dur,
+            }),
+          }).catch(console.error);
         }
       }
     }, 5000);

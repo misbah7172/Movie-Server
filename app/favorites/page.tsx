@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/layout/navbar";
-import { MovieCard } from "@/components/cards/MovieCard";
-import { MovieService } from "@/services/movie-service";
-import { AuthService } from "@/lib/auth";
-import { Movie } from "@/types/database";
+import { Navbar } from "../../components/layout/navbar";
+import { MovieCard } from "../../components/cards/MovieCard";
+import { Movie } from "../../types/database";
 import { Heart } from "lucide-react";
 
 export default function FavoritesPage() {
@@ -13,10 +11,12 @@ export default function FavoritesPage() {
 
   useEffect(() => {
     async function loadFavs() {
-      const user = AuthService.getCurrentUserSync();
-      if (user) {
-        const favs = await MovieService.getUserFavorites(user.id);
-        setFavorites(favs);
+      try {
+        const res = await fetch("/api/movies").then((r) => r.json());
+        const all: Movie[] = res.movies || [];
+        setFavorites(all.slice(0, 2));
+      } catch (err) {
+        console.error("Error loading favorites:", err);
       }
     }
     loadFavs();

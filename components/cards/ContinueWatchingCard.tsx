@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { WatchHistory } from "@/types/database";
+import { WatchHistory } from "../../types/database";
 import { Play } from "lucide-react";
 import { motion } from "framer-motion";
 

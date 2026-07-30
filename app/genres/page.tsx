@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/layout/navbar";
-import { MovieCard } from "@/components/cards/MovieCard";
-import { MovieService } from "@/services/movie-service";
-import { Genre, Movie } from "@/types/database";
+import { Navbar } from "../../components/layout/navbar";
+import { MovieCard } from "../../components/cards/MovieCard";
+import { Genre, Movie } from "../../types/database";
 import { Grid } from "lucide-react";
 
 export default function GenresPage() {
@@ -14,11 +13,18 @@ export default function GenresPage() {
 
   useEffect(() => {
     async function loadData() {
-      const g = await MovieService.getAllGenres();
-      const m = await MovieService.getAllMovies();
-      setGenres(g);
-      setMovies(m);
-      if (g.length > 0) setSelectedGenre(g[0].slug);
+      try {
+        const [gRes, mRes] = await Promise.all([
+          fetch("/api/genres").then((r) => r.json()),
+          fetch("/api/movies").then((r) => r.json()),
+        ]);
+        const gList: Genre[] = gRes.genres || [];
+        setGenres(gList);
+        setMovies(mRes.movies || []);
+        if (gList.length > 0) setSelectedGenre(gList[0].slug);
+      } catch (err) {
+        console.error("Error loading genres:", err);
+      }
     }
     loadData();
   }, []);
@@ -42,7 +48,6 @@ export default function GenresPage() {
           </p>
         </div>
 
-        {/* Genre Pill Buttons */}
         <div className="flex flex-wrap gap-2 py-2">
           {genres.map((g) => {
             const active = selectedGenre === g.slug;
@@ -62,7 +67,6 @@ export default function GenresPage() {
           })}
         </div>
 
-        {/* Movies Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
           {genreMovies.map((m) => (
             <MovieCard key={m.id} movie={m} />

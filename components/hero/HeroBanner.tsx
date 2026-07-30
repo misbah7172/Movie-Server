@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Movie } from "@/types/database";
+import { Movie } from "../../types/database";
 import { Play, Info, Star, Volume2, VolumeX, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 

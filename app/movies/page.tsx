@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Navbar } from "@/components/layout/navbar";
-import { MovieCard } from "@/components/cards/MovieCard";
-import { MovieService } from "@/services/movie-service";
-import { Movie, Genre } from "@/types/database";
-import { Film, Filter, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { Navbar } from "../../components/layout/navbar";
+import { MovieCard } from "../../components/cards/MovieCard";
+import { Movie, Genre } from "../../types/database";
+import { Film, Filter, ArrowUpDown } from "lucide-react";
 
 export default function MoviesPage() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -18,16 +17,22 @@ export default function MoviesPage() {
 
   useEffect(() => {
     async function loadData() {
-      const allMovies = await MovieService.getAllMovies();
-      const allGenres = await MovieService.getAllGenres();
-      setMovies(allMovies);
-      setGenres(allGenres);
-      setLoading(false);
+      try {
+        const [mRes, gRes] = await Promise.all([
+          fetch("/api/movies").then((r) => r.json()),
+          fetch("/api/genres").then((r) => r.json()),
+        ]);
+        setMovies(mRes.movies || []);
+        setGenres(gRes.genres || []);
+      } catch (err) {
+        console.error("Error loading movies page data:", err);
+      } finally {
+        setLoading(false);
+      }
     }
     loadData();
   }, []);
 
-  // Filter & Sort Logic
   const filteredMovies = movies
     .filter((m) => {
       const matchGenre =
@@ -50,7 +55,6 @@ export default function MoviesPage() {
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16 space-y-8">
-        {/* Header Title & Counter */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white uppercase flex items-center space-x-3">
@@ -66,9 +70,7 @@ export default function MoviesPage() {
           </span>
         </div>
 
-        {/* Filter Controls Bar */}
         <div className="glass-panel p-4 rounded-2xl border border-zinc-800 flex flex-wrap items-center gap-4 text-xs font-medium">
-          {/* Genre Filter */}
           <div className="flex items-center space-x-2">
             <Filter className="w-4 h-4 text-[#E50914]" />
             <select
@@ -85,7 +87,6 @@ export default function MoviesPage() {
             </select>
           </div>
 
-          {/* Resolution Filter */}
           <div className="flex items-center space-x-2">
             <select
               value={selectedResolution}
@@ -99,7 +100,6 @@ export default function MoviesPage() {
             </select>
           </div>
 
-          {/* Release Year Filter */}
           <div className="flex items-center space-x-2">
             <select
               value={selectedYear}
@@ -113,7 +113,6 @@ export default function MoviesPage() {
             </select>
           </div>
 
-          {/* Sort By Dropdown */}
           <div className="flex items-center space-x-2 ml-auto">
             <ArrowUpDown className="w-4 h-4 text-zinc-400" />
             <select
@@ -129,7 +128,6 @@ export default function MoviesPage() {
           </div>
         </div>
 
-        {/* Movies Grid */}
         {filteredMovies.length === 0 ? (
           <div className="p-12 text-center glass-panel rounded-2xl border border-zinc-800">
             <p className="text-zinc-400 text-base">No movies found matching selected filters.</p>

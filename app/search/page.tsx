@@ -2,11 +2,10 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Navbar } from "@/components/layout/navbar";
-import { MovieCard } from "@/components/cards/MovieCard";
-import { MovieService } from "@/services/movie-service";
-import { Movie } from "@/types/database";
-import { Search, Film, Sparkles } from "lucide-react";
+import { Navbar } from "../../components/layout/navbar";
+import { MovieCard } from "../../components/cards/MovieCard";
+import { Movie } from "../../types/database";
+import { Search, Film } from "lucide-react";
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -18,9 +17,14 @@ function SearchContent() {
   useEffect(() => {
     async function performSearch() {
       setLoading(true);
-      const res = await MovieService.searchMovies(query);
-      setResults(res);
-      setLoading(false);
+      try {
+        const res = await fetch(`/api/movies?q=${encodeURIComponent(query)}`).then((r) => r.json());
+        setResults(res.movies || []);
+      } catch (err) {
+        console.error("Error searching movies:", err);
+      } finally {
+        setLoading(false);
+      }
     }
 
     const timer = setTimeout(performSearch, 200);
@@ -29,7 +33,6 @@ function SearchContent() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16 space-y-8">
-      {/* Search Input Box */}
       <div className="relative max-w-2xl mx-auto">
         <input
           type="text"
@@ -42,7 +45,6 @@ function SearchContent() {
         <Search className="w-6 h-6 text-zinc-400 absolute left-4 top-4.5" />
       </div>
 
-      {/* Search Results Summary */}
       <div className="flex items-center justify-between text-sm text-zinc-400 border-b border-zinc-800 pb-3">
         <span>
           {query ? `Search results for "${query}"` : "All Library Movies"}
@@ -50,7 +52,6 @@ function SearchContent() {
         <span>{results.length} movies found</span>
       </div>
 
-      {/* Grid Results */}
       {loading ? (
         <div className="p-12 text-center text-zinc-400">Searching library...</div>
       ) : results.length === 0 ? (

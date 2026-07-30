@@ -1,31 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Navbar } from "@/components/layout/navbar";
-import { MovieService } from "@/services/movie-service";
-import { Movie, Genre, Collection } from "@/types/database";
+import { Navbar } from "../../components/layout/navbar";
+import { Movie, Genre } from "@/types/database";
 import {
   Film,
   HardDrive,
   UploadCloud,
   Trash2,
-  Edit,
   Plus,
-  BarChart3,
   Clock,
-  CheckCircle,
-  Layers,
-  Grid,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function AdminDashboardPage() {
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [genres, setGenres] = useState<Genre[]>([]);
   const [stats, setStats] = useState({ totalMovies: 0, totalSizeGB: "0", totalHours: "0" });
   const [loading, setLoading] = useState(true);
 
-  // Upload modal state
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
@@ -41,22 +33,29 @@ export default function AdminDashboardPage() {
 
   const loadAdminData = async () => {
     setLoading(true);
-    const m = await MovieService.getAllMovies();
-    const g = await MovieService.getAllGenres();
-    const s = await MovieService.getStorageStats();
-    setMovies(m);
-    setGenres(g);
-    setStats({
-      totalMovies: s.totalMovies,
-      totalSizeGB: s.totalSizeGB,
-      totalHours: s.totalHours,
-    });
-    setLoading(false);
+    try {
+      const [mRes, sRes] = await Promise.all([
+        fetch("/api/movies").then((r) => r.json()),
+        fetch("/api/admin/stats").then((r) => r.json()),
+      ]);
+      setMovies(mRes.movies || []);
+      if (sRes.stats) {
+        setStats({
+          totalMovies: sRes.stats.totalMovies,
+          totalSizeGB: sRes.stats.totalSizeGB,
+          totalHours: sRes.stats.totalHours,
+        });
+      }
+    } catch (err) {
+      console.error("Error loading admin data:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeleteMovie = async (id: string) => {
     if (confirm("Are you sure you want to delete this movie from storage?")) {
-      await MovieService.deleteMovie(id);
+      await fetch(`/api/admin/stats?id=${id}`, { method: "DELETE" });
       loadAdminData();
     }
   };
@@ -113,7 +112,6 @@ export default function AdminDashboardPage() {
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16 space-y-8">
-        {/* Header Title */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white uppercase">
@@ -133,7 +131,6 @@ export default function AdminDashboardPage() {
           </button>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           <div className="glass-panel p-6 rounded-2xl border border-zinc-800 flex items-center space-x-4">
             <div className="p-3.5 rounded-xl bg-[#E50914]/20 border border-[#E50914]/40 text-[#E50914]">
@@ -166,7 +163,6 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Movie Library Table */}
         <div className="glass-panel rounded-2xl border border-zinc-800 overflow-hidden">
           <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
             <h3 className="text-lg font-bold text-white flex items-center space-x-2">
@@ -226,7 +222,6 @@ export default function AdminDashboardPage() {
         </div>
       </main>
 
-      {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <motion.div

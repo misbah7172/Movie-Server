@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Navbar } from "@/components/layout/navbar";
-import { AuthService, AuthUser } from "@/lib/auth";
-import { User, Shield, Mail, Calendar, Camera } from "lucide-react";
+import { Navbar } from "../../components/layout/navbar";
+import { AuthService, AuthUser } from "../../lib/auth";
+import { User, Camera } from "lucide-react";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -28,7 +28,6 @@ export default function ProfilePage() {
         </div>
 
         <div className="glass-panel p-8 rounded-2xl border border-zinc-800 space-y-8">
-          {/* Avatar Header */}
           <div className="flex items-center space-x-6">
             <div className="relative">
               <img

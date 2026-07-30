@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/layout/navbar";
-import { MovieCard } from "@/components/cards/MovieCard";
-import { MovieService } from "@/services/movie-service";
-import { Collection, Movie } from "@/types/database";
+import { Navbar } from "../../components/layout/navbar";
+import { MovieCard } from "../../components/cards/MovieCard";
+import { Collection, Movie } from "../../types/database";
 import { Layers } from "lucide-react";
 
 export default function CollectionsPage() {
@@ -13,10 +12,16 @@ export default function CollectionsPage() {
 
   useEffect(() => {
     async function loadData() {
-      const cols = await MovieService.getAllCollections();
-      const allMovies = await MovieService.getAllMovies();
-      setCollections(cols);
-      setMovies(allMovies);
+      try {
+        const [cRes, mRes] = await Promise.all([
+          fetch("/api/collections").then((r) => r.json()),
+          fetch("/api/movies").then((r) => r.json()),
+        ]);
+        setCollections(cRes.collections || []);
+        setMovies(mRes.movies || []);
+      } catch (err) {
+        console.error("Error loading collections:", err);
+      }
     }
     loadData();
   }, []);

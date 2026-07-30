@@ -1,7 +1,7 @@
-import { MovieService } from "@/services/movie-service";
-import { Navbar } from "@/components/layout/navbar";
-import { HorizontalScrollRow } from "@/components/rows/HorizontalScrollRow";
-import { Play, Star, Clock, Film, Heart, Share2, Subtitles, Volume2, Shield } from "lucide-react";
+import { MovieService } from "../../../services/movie-service";
+import { Navbar } from "../../../components/layout/navbar";
+import { HorizontalScrollRow } from "../../../components/rows/HorizontalScrollRow";
+import { Play, Star, Heart, Share2 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -22,7 +22,6 @@ export default async function MovieDetailsPage({ params }: { params: Promise<{ i
     <div className="min-h-screen bg-[#08080a] text-white">
       <Navbar />
 
-      {/* Hero Backdrop Section */}
       <div className="relative w-full h-[60vh] sm:h-[70vh] min-h-[450px] overflow-hidden">
         <img
           src={
@@ -37,10 +36,8 @@ export default async function MovieDetailsPage({ params }: { params: Promise<{ i
         <div className="absolute inset-0 hero-vignette-left" />
       </div>
 
-      {/* Details Main Section */}
       <main className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-40 sm:-mt-52 pb-20 space-y-12">
         <div className="flex flex-col md:flex-row gap-8 items-start">
-          {/* Poster Image */}
           <div className="flex-none w-48 sm:w-64 rounded-2xl overflow-hidden shadow-2xl border-2 border-zinc-800 bg-zinc-950">
             <img
               src={
@@ -52,7 +49,6 @@ export default async function MovieDetailsPage({ params }: { params: Promise<{ i
             />
           </div>
 
-          {/* Details Metadata Content */}
           <div className="flex-1 space-y-6">
             <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-zinc-300">
               <span className="px-2.5 py-1 rounded bg-[#E50914] text-white font-bold uppercase tracking-wide">
@@ -73,7 +69,6 @@ export default async function MovieDetailsPage({ params }: { params: Promise<{ i
               {movie.title}
             </h1>
 
-            {/* Genres Badges */}
             <div className="flex flex-wrap gap-2">
               {movie.genres?.map((g) => (
                 <span
@@ -85,7 +80,6 @@ export default async function MovieDetailsPage({ params }: { params: Promise<{ i
               ))}
             </div>
 
-            {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <Link
                 href={`/watch/${movie.id}`}
@@ -104,12 +98,10 @@ export default async function MovieDetailsPage({ params }: { params: Promise<{ i
               </button>
             </div>
 
-            {/* Description */}
             <div className="glass-panel p-6 rounded-2xl border border-zinc-800 space-y-4">
               <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Plot Summary</h3>
               <p className="text-zinc-300 leading-relaxed text-sm sm:text-base">{movie.description}</p>
 
-              {/* Technical Specifications */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-zinc-800/80 text-xs">
                 <div>
                   <span className="text-zinc-500 block uppercase font-semibold">Audio Codec</span>
@@ -132,7 +124,6 @@ export default async function MovieDetailsPage({ params }: { params: Promise<{ i
           </div>
         </div>
 
-        {/* Related Movies Row */}
         {relatedMovies.length > 0 && (
           <HorizontalScrollRow
             title="More Like This"

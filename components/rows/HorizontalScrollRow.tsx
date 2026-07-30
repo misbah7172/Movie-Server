@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { MovieCard } from "../cards/MovieCard";
-import { Movie } from "@/types/database";
+import { Movie } from "../../types/database";
 import { motion } from "framer-motion";
 
 interface HorizontalScrollRowProps {
