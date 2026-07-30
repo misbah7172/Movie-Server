@@ -19,6 +19,13 @@ export async function POST(request: NextRequest) {
     const releaseYear = parseInt(releaseYearStr || "2024", 10);
     const genreNames = (formData.get("genres") as string)?.split(",").map((g) => g.trim()) || ["Sci-Fi"];
 
+    // Client-side pre-extracted metadata (Vercel-native)
+    const clientDuration = formData.get("duration") ? parseInt(formData.get("duration") as string, 10) : null;
+    const clientRuntime = formData.get("runtime") ? parseInt(formData.get("runtime") as string, 10) : null;
+    const clientResolution = (formData.get("resolution") as string) || null;
+    const clientCodec = (formData.get("codec") as string) || null;
+    const clientAspectRatio = (formData.get("aspect_ratio") as string) || null;
+
     if (!videoFile || typeof videoFile === "string" || !(videoFile as any).size) {
       return NextResponse.json({ error: "No video file provided" }, { status: 400 });
     }
@@ -27,13 +34,33 @@ export async function POST(request: NextRequest) {
     const videoBuffer = Buffer.from(videoBytes);
     const safeVideoName = `${Date.now()}_${videoFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
 
-    // Write temp video file to OS temp dir (C: drive with 50+ GB free) for ffprobe analysis
-    const tempDir = os.tmpdir();
-    tempVideoPath = path.join(tempDir, safeVideoName);
-    fs.writeFileSync(tempVideoPath, videoBuffer);
+    // Extract or fallback metadata
+    let metadata = {
+      duration: clientDuration || 7200,
+      runtime: clientRuntime || 120,
+      resolution: clientResolution || "1080p Full HD",
+      codec: clientCodec || "H.264",
+      aspectRatio: clientAspectRatio || "16:9",
+    };
 
-    // Run ffprobe analysis
-    const metadata = await extractMediaMetadata(tempVideoPath);
+    // If client metadata was not provided, attempt ffprobe analysis
+    if (!clientDuration) {
+      try {
+        const tempDir = os.tmpdir();
+        tempVideoPath = path.join(tempDir, safeVideoName);
+        fs.writeFileSync(tempVideoPath, videoBuffer);
+        const probed = await extractMediaMetadata(tempVideoPath);
+        metadata = {
+          duration: probed.duration,
+          runtime: probed.runtime,
+          resolution: probed.resolution,
+          codec: probed.codec,
+          aspectRatio: probed.aspectRatio,
+        };
+      } catch (e) {
+        console.warn("Server ffprobe notice (using client metadata fallback):", e);
+      }
+    }
 
     // Process poster file if provided
     let finalPosterPath = "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop";

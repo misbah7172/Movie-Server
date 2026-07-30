@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Navbar } from "../../components/layout/navbar";
+import { Navbar } from "../../components/layout/Navbar";
 import { MovieCard } from "../../components/cards/MovieCard";
 import { Movie, Genre } from "../../types/database";
 import { Film, Filter, ArrowUpDown } from "lucide-react";

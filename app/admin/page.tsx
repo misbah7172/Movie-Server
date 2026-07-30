@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Navbar } from "../../components/layout/navbar";
+import { Navbar } from "../../components/layout/Navbar";
 import { Movie } from "../../types/database";
+import { extractVideoMetadataInBrowser } from "../../lib/video-metadata";
 import {
   Film,
   HardDrive,
@@ -68,21 +69,31 @@ export default function AdminDashboardPage() {
     }
 
     setIsUploading(true);
-    setUploadStatus("Uploading media file & running ffprobe analysis...");
-
-    const formData = new FormData();
-    formData.append("title", uploadTitle);
-    formData.append("description", uploadDescription);
-    formData.append("release_year", uploadYear);
-    formData.append("releaseYear", uploadYear);
-    formData.append("video", movieFile);
-    formData.append("movieFile", movieFile);
-    if (posterFile) {
-      formData.append("poster", posterFile);
-      formData.append("posterFile", posterFile);
-    }
+    setUploadStatus("Analyzing video metadata & preparing upload...");
 
     try {
+      const clientMeta = await extractVideoMetadataInBrowser(movieFile);
+
+      setUploadStatus("Uploading to PostgreSQL database & storage...");
+
+      const formData = new FormData();
+      formData.append("title", uploadTitle);
+      formData.append("description", uploadDescription);
+      formData.append("release_year", uploadYear);
+      formData.append("releaseYear", uploadYear);
+      formData.append("duration", clientMeta.duration.toString());
+      formData.append("runtime", clientMeta.runtime.toString());
+      formData.append("resolution", clientMeta.resolution);
+      formData.append("codec", clientMeta.codec);
+      formData.append("aspect_ratio", clientMeta.aspectRatio);
+
+      formData.append("video", movieFile);
+      formData.append("movieFile", movieFile);
+      if (posterFile) {
+        formData.append("poster", posterFile);
+        formData.append("posterFile", posterFile);
+      }
+
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
@@ -90,7 +101,7 @@ export default function AdminDashboardPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setUploadStatus("Upload complete! Metadata extracted successfully.");
+        setUploadStatus("Upload complete! Movie saved to PostgreSQL database.");
         setTimeout(() => {
           setShowUploadModal(false);
           setUploadTitle("");

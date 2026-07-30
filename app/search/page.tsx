@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Navbar } from "../../components/layout/navbar";
+import { Navbar } from "../../components/layout/Navbar";
 import { MovieCard } from "../../components/cards/MovieCard";
 import { Movie } from "../../types/database";
 import { Search, Film } from "lucide-react";

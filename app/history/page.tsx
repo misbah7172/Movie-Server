@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Navbar } from "../../components/layout/navbar";
+import { Navbar } from "../../components/layout/Navbar";
 import { ContinueWatchingCard } from "../../components/cards/ContinueWatchingCard";
 import { AuthService } from "../../lib/auth";
 import { WatchHistory } from "../../types/database";

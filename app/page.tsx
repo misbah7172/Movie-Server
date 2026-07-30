@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Navbar } from "../components/layout/navbar";
+import { Navbar } from "../components/layout/Navbar";
 import { HeroBanner } from "../components/hero/HeroBanner";
 import { HorizontalScrollRow } from "../components/rows/HorizontalScrollRow";
 import { ContinueWatchingCard } from "../components/cards/ContinueWatchingCard";

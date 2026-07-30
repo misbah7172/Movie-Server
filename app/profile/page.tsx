@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Navbar } from "../../components/layout/navbar";
+import { Navbar } from "../../components/layout/Navbar";
 import { AuthService, AuthUser } from "../../lib/auth";
 import { User, Camera } from "lucide-react";
 

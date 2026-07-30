@@ -1,5 +1,5 @@
 import { MovieService } from "../../../services/movie-service";
-import { Navbar } from "../../../components/layout/navbar";
+import { Navbar } from "../../../components/layout/Navbar";
 import { HorizontalScrollRow } from "../../../components/rows/HorizontalScrollRow";
 import { Play, Star, Heart, Share2 } from "lucide-react";
 import Link from "next/link";
