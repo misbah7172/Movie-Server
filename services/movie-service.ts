@@ -1,278 +1,223 @@
-import { Movie, Genre, Actor, Collection, Subtitle, WatchHistory, Profile } from "@/types/database";
-import fs from "fs";
-import path from "path";
-
-// Initial seed movie data for out-of-the-box rich demo testing
-const INITIAL_MOVIES: Movie[] = [
-  {
-    id: "m-001",
-    title: "Cosmic Odyssey 2099",
-    original_title: "Cosmic Odyssey: First Contact",
-    slug: "cosmic-odyssey-2099",
-    description: "A deep space exploration vessel uncovers a mysterious alien structure at the edge of the solar system, threatening the survival of human civilization.",
-    release_year: 2024,
-    runtime: 148,
-    resolution: "4K 2160p",
-    codec: "H.264",
-    language: "English",
-    poster_path: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1000&auto=format&fit=crop",
-    backdrop_path: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920&auto=format&fit=crop",
-    movie_path: "/storage/movies/cosmic_odyssey.mp4",
-    trailer_path: "",
-    duration: 8880,
-    file_size: 15420000000,
-    aspect_ratio: "16:9",
-    is_featured: true,
-    view_count: 1420,
-    rating_average: 4.8,
-    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-    updated_at: new Date().toISOString(),
-    genres: [
-      { id: "g-sci-fi", name: "Sci-Fi", slug: "sci-fi" },
-      { id: "g-adventure", name: "Adventure", slug: "adventure" },
-    ],
-    actors: [
-      { id: "a-1", name: "Elena Vance", role: "Actor", character_name: "Commander Sarah Vance" },
-      { id: "a-2", name: "Marcus Miller", role: "Director", character_name: "Director" },
-    ],
-  },
-  {
-    id: "m-002",
-    title: "Neon Cyberpunk: Neon City",
-    original_title: "Neon City",
-    slug: "neon-cyberpunk-neon-city",
-    description: "In a dystopian futuristic metropolis, a rogue hacker teams up with an augmented private eye to expose a megacorporation's dark experiment.",
-    release_year: 2023,
-    runtime: 126,
-    resolution: "1080p Full HD",
-    codec: "H.264",
-    language: "English",
-    poster_path: "https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1000&auto=format&fit=crop",
-    backdrop_path: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1920&auto=format&fit=crop",
-    movie_path: "/storage/movies/neon_city.mp4",
-    trailer_path: "",
-    duration: 7560,
-    file_size: 8900000000,
-    aspect_ratio: "16:9",
-    is_featured: true,
-    view_count: 980,
-    rating_average: 4.6,
-    created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
-    updated_at: new Date().toISOString(),
-    genres: [
-      { id: "g-sci-fi", name: "Sci-Fi", slug: "sci-fi" },
-      { id: "g-action", name: "Action", slug: "action" },
-      { id: "g-thriller", name: "Thriller", slug: "thriller" },
-    ],
-  },
-  {
-    id: "m-003",
-    title: "Shadows of the Forgotten Kingdom",
-    original_title: "The Forgotten Kingdom",
-    slug: "shadows-of-the-forgotten-kingdom",
-    description: "An exiled knight embarks on a perilous journey across enchanted realms to reclaim their ancestral throne from an ancient warlord.",
-    release_year: 2024,
-    runtime: 162,
-    resolution: "4K 2160p",
-    codec: "HEVC",
-    language: "English",
-    poster_path: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1000&auto=format&fit=crop",
-    backdrop_path: "https://images.unsplash.com/photo-1514539079130-25950c84af65?q=80&w=1920&auto=format&fit=crop",
-    movie_path: "/storage/movies/forgotten_kingdom.mp4",
-    trailer_path: "",
-    duration: 9720,
-    file_size: 18200000000,
-    aspect_ratio: "2.39:1",
-    is_featured: false,
-    view_count: 2150,
-    rating_average: 4.9,
-    created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
-    updated_at: new Date().toISOString(),
-    genres: [
-      { id: "g-fantasy", name: "Fantasy", slug: "fantasy" },
-      { id: "g-action", name: "Action", slug: "action" },
-    ],
-  },
-  {
-    id: "m-004",
-    title: "The Midnight Express Heist",
-    slug: "the-midnight-express-heist",
-    description: "A crew of elite thieves attempt the impossible: stealing a priceless diamond payload from a moving high-speed bullet train.",
-    release_year: 2022,
-    runtime: 110,
-    resolution: "1080p Full HD",
-    codec: "H.264",
-    language: "English",
-    poster_path: "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?q=80&w=1000&auto=format&fit=crop",
-    backdrop_path: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?q=80&w=1920&auto=format&fit=crop",
-    movie_path: "/storage/movies/midnight_heist.mp4",
-    duration: 6600,
-    file_size: 6500000000,
-    aspect_ratio: "16:9",
-    is_featured: false,
-    view_count: 810,
-    rating_average: 4.4,
-    created_at: new Date(Date.now() - 86400000 * 15).toISOString(),
-    updated_at: new Date().toISOString(),
-    genres: [
-      { id: "g-action", name: "Action", slug: "action" },
-      { id: "g-crime", name: "Crime", slug: "crime" },
-    ],
-  },
-];
-
-const INITIAL_GENRES: Genre[] = [
-  { id: "g-action", name: "Action", slug: "action" },
-  { id: "g-sci-fi", name: "Sci-Fi", slug: "sci-fi" },
-  { id: "g-fantasy", name: "Fantasy", slug: "fantasy" },
-  { id: "g-adventure", name: "Adventure", slug: "adventure" },
-  { id: "g-thriller", name: "Thriller", slug: "thriller" },
-  { id: "g-crime", name: "Crime", slug: "crime" },
-  { id: "g-drama", name: "Drama", slug: "drama" },
-  { id: "g-animation", name: "Animation", slug: "animation" },
-];
-
-const INITIAL_COLLECTIONS: Collection[] = [
-  {
-    id: "col-sci-fi-classics",
-    name: "Future Worlds & Cyberpunk",
-    slug: "future-worlds",
-    description: "Curated futuristic blockbusters and cyberpunk space sagas.",
-    cover_path: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1000&auto=format&fit=crop",
-    movie_count: 2,
-  },
-  {
-    id: "col-action-packed",
-    name: "High-Octane Action",
-    slug: "high-octane-action",
-    description: "Edge-of-your-seat thrillers, heists, and battles.",
-    cover_path: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1000&auto=format&fit=crop",
-    movie_count: 3,
-  },
-];
-
-const DATA_FILE = path.join(process.cwd(), "storage", "db_store.json");
-
-interface LocalStore {
-  movies: Movie[];
-  genres: Genre[];
-  collections: Collection[];
-  watchHistory: Record<string, WatchHistory[]>; // user_id -> history
-  favorites: Record<string, string[]>; // user_id -> movie_ids
-}
-
-function loadStore(): LocalStore {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, "utf-8");
-      return JSON.parse(raw);
-    }
-  } catch (err) {
-    console.error("Error reading db_store.json:", err);
-  }
-  return {
-    movies: INITIAL_MOVIES,
-    genres: INITIAL_GENRES,
-    collections: INITIAL_COLLECTIONS,
-    watchHistory: {},
-    favorites: {},
-  };
-}
-
-function saveStore(store: LocalStore) {
-  try {
-    const dir = path.dirname(DATA_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), "utf-8");
-  } catch (err) {
-    console.error("Error saving db_store.json:", err);
-  }
-}
+import { Movie, Genre, Actor, Collection, Subtitle, WatchHistory } from "../types/database";
+import { db, initPostgresDatabase } from "../lib/db";
 
 export class MovieService {
+  private static async getClient() {
+    await initPostgresDatabase();
+    return db;
+  }
+
   static async getAllMovies(): Promise<Movie[]> {
-    const store = loadStore();
-    return store.movies;
+    try {
+      const pool = await this.getClient();
+      const res = await pool.query(`
+        SELECT m.*, 
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object('id', g.id, 'name', g.name, 'slug', g.slug)
+            ) FILTER (WHERE g.id IS NOT NULL), '[]'
+          ) as genres
+        FROM movies m
+        LEFT JOIN movie_genres mg ON m.id = mg.movie_id
+        LEFT JOIN genres g ON mg.genre_id = g.id
+        GROUP BY m.id
+        ORDER BY m.created_at DESC;
+      `);
+      return res.rows;
+    } catch (err) {
+      console.error("Error fetching movies from PostgreSQL:", err);
+      return [];
+    }
   }
 
   static async getMovieById(id: string): Promise<Movie | null> {
-    const store = loadStore();
-    return store.movies.find((m) => m.id === id || m.slug === id) || null;
+    try {
+      const pool = await this.getClient();
+      const res = await pool.query(
+        `
+        SELECT m.*, 
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object('id', g.id, 'name', g.name, 'slug', g.slug)
+            ) FILTER (WHERE g.id IS NOT NULL), '[]'
+          ) as genres
+        FROM movies m
+        LEFT JOIN movie_genres mg ON m.id = mg.movie_id
+        LEFT JOIN genres g ON mg.genre_id = g.id
+        WHERE m.id::text = $1 OR m.slug = $1
+        GROUP BY m.id;
+      `,
+        [id]
+      );
+      return res.rows[0] || null;
+    } catch (err) {
+      console.error("Error fetching movie by ID from PostgreSQL:", err);
+      return null;
+    }
   }
 
   static async getFeaturedMovies(): Promise<Movie[]> {
-    const store = loadStore();
-    return store.movies.filter((m) => m.is_featured);
+    try {
+      const pool = await this.getClient();
+      const res = await pool.query(`SELECT * FROM movies WHERE is_featured = true ORDER BY created_at DESC;`);
+      return res.rows;
+    } catch (err) {
+      console.error("Error fetching featured movies:", err);
+      return [];
+    }
   }
 
-  static async searchMovies(query: string, filters?: { genre?: string; year?: number; resolution?: string }): Promise<Movie[]> {
-    const store = loadStore();
-    const q = query.toLowerCase().trim();
+  static async searchMovies(
+    query: string,
+    filters?: { genre?: string; year?: number; resolution?: string }
+  ): Promise<Movie[]> {
+    try {
+      const pool = await this.getClient();
+      let sql = `
+        SELECT m.*, 
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object('id', g.id, 'name', g.name, 'slug', g.slug)
+            ) FILTER (WHERE g.id IS NOT NULL), '[]'
+          ) as genres
+        FROM movies m
+        LEFT JOIN movie_genres mg ON m.id = mg.movie_id
+        LEFT JOIN genres g ON mg.genre_id = g.id
+        WHERE 1=1
+      `;
+      const params: any[] = [];
 
-    return store.movies.filter((movie) => {
-      const matchesText =
-        !q ||
-        movie.title.toLowerCase().includes(q) ||
-        movie.description?.toLowerCase().includes(q) ||
-        movie.genres?.some((g) => g.name.toLowerCase().includes(q));
+      if (query && query.trim() !== "") {
+        params.push(`%${query.trim()}%`);
+        sql += ` AND (m.title ILIKE $${params.length} OR m.description ILIKE $${params.length})`;
+      }
 
-      const matchesGenre =
-        !filters?.genre || movie.genres?.some((g) => g.slug === filters.genre || g.name === filters.genre);
+      if (filters?.year) {
+        params.push(filters.year);
+        sql += ` AND m.release_year = $${params.length}`;
+      }
 
-      const matchesYear = !filters?.year || movie.release_year === filters.year;
+      if (filters?.resolution) {
+        params.push(`%${filters.resolution}%`);
+        sql += ` AND m.resolution ILIKE $${params.length}`;
+      }
 
-      const matchesRes =
-        !filters?.resolution || movie.resolution.toLowerCase().includes(filters.resolution.toLowerCase());
+      sql += ` GROUP BY m.id ORDER BY m.created_at DESC;`;
 
-      return matchesText && matchesGenre && matchesYear && matchesRes;
-    });
+      const res = await pool.query(sql, params);
+      let results = res.rows;
+
+      if (filters?.genre) {
+        results = results.filter((m: Movie) =>
+          m.genres?.some((g: Genre) => g.slug === filters.genre || g.name === filters.genre)
+        );
+      }
+
+      return results;
+    } catch (err) {
+      console.error("Error searching movies:", err);
+      return [];
+    }
   }
 
   static async addMovie(movie: Omit<Movie, "id" | "created_at" | "updated_at">): Promise<Movie> {
-    const store = loadStore();
-    const newMovie: Movie = {
-      ...movie,
-      id: `m-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    store.movies.unshift(newMovie);
-    saveStore(store);
-    return newMovie;
+    const pool = await this.getClient();
+    const res = await pool.query(
+      `
+      INSERT INTO movies (
+        title, original_title, slug, description, release_year, runtime,
+        resolution, codec, language, poster_path, backdrop_path, movie_path,
+        trailer_path, duration, file_size, aspect_ratio, is_featured, rating_average
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+      ) RETURNING *;
+    `,
+      [
+        movie.title,
+        movie.original_title || null,
+        movie.slug,
+        movie.description || null,
+        movie.release_year || null,
+        movie.runtime || null,
+        movie.resolution || "1080p",
+        movie.codec || "H.264",
+        movie.language || "English",
+        movie.poster_path || null,
+        movie.backdrop_path || null,
+        movie.movie_path,
+        movie.trailer_path || null,
+        movie.duration || 0,
+        movie.file_size || 0,
+        movie.aspect_ratio || "16:9",
+        movie.is_featured || false,
+        movie.rating_average || 5.0,
+      ]
+    );
+
+    const insertedMovie = res.rows[0];
+
+    // Connect genres if specified
+    if (movie.genres && movie.genres.length > 0) {
+      for (const g of movie.genres) {
+        let genreId = g.id;
+        // Ensure genre exists in genres table
+        const genreRes = await pool.query(
+          `INSERT INTO genres (name, slug) VALUES ($1, $2) ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name RETURNING id;`,
+          [g.name || g.slug, g.slug || g.id]
+        );
+        genreId = genreRes.rows[0].id;
+        await pool.query(
+          `INSERT INTO movie_genres (movie_id, genre_id) VALUES ($1, $2) ON CONFLICT DO NOTHING;`,
+          [insertedMovie.id, genreId]
+        );
+      }
+    }
+
+    return insertedMovie;
   }
 
   static async updateMovie(id: string, updates: Partial<Movie>): Promise<Movie | null> {
-    const store = loadStore();
-    const idx = store.movies.findIndex((m) => m.id === id);
-    if (idx === -1) return null;
-
-    store.movies[idx] = {
-      ...store.movies[idx],
-      ...updates,
-      updated_at: new Date().toISOString(),
-    };
-    saveStore(store);
-    return store.movies[idx];
+    const pool = await this.getClient();
+    const res = await pool.query(
+      `
+      UPDATE movies 
+      SET title = COALESCE($2, title),
+          description = COALESCE($3, description),
+          updated_at = NOW()
+      WHERE id::text = $1 OR slug = $1
+      RETURNING *;
+    `,
+      [id, updates.title || null, updates.description || null]
+    );
+    return res.rows[0] || null;
   }
 
   static async deleteMovie(id: string): Promise<boolean> {
-    const store = loadStore();
-    const initialLen = store.movies.length;
-    store.movies = store.movies.filter((m) => m.id !== id);
-    saveStore(store);
-    return store.movies.length < initialLen;
+    const pool = await this.getClient();
+    const res = await pool.query(`DELETE FROM movies WHERE id::text = $1 OR slug = $1;`, [id]);
+    return (res.rowCount || 0) > 0;
   }
 
   static async getAllGenres(): Promise<Genre[]> {
-    const store = loadStore();
-    return store.genres;
+    try {
+      const pool = await this.getClient();
+      const res = await pool.query(`SELECT * FROM genres ORDER BY name ASC;`);
+      return res.rows;
+    } catch (err) {
+      console.error("Error fetching genres:", err);
+      return [];
+    }
   }
 
   static async getAllCollections(): Promise<Collection[]> {
-    const store = loadStore();
-    return store.collections;
+    try {
+      const pool = await this.getClient();
+      const res = await pool.query(`SELECT * FROM collections ORDER BY name ASC;`);
+      return res.rows;
+    } catch (err) {
+      console.error("Error fetching collections:", err);
+      return [];
+    }
   }
 
   static async updateWatchHistory(
@@ -281,84 +226,122 @@ export class MovieService {
     progressSeconds: number,
     durationSeconds: number
   ): Promise<WatchHistory> {
-    const store = loadStore();
-    if (!store.watchHistory[userId]) {
-      store.watchHistory[userId] = [];
-    }
-
-    const userHist = store.watchHistory[userId];
+    const pool = await this.getClient();
     const percentage = durationSeconds > 0 ? (progressSeconds / durationSeconds) * 100 : 0;
     const completed = percentage >= 92;
 
-    const existingIdx = userHist.findIndex((h) => h.movie_id === movieId);
-    const updatedRecord: WatchHistory = {
-      id: existingIdx !== -1 ? userHist[existingIdx].id : `wh-${Date.now()}`,
-      user_id: userId,
-      movie_id: movieId,
-      progress_seconds: progressSeconds,
-      duration_seconds: durationSeconds,
-      percentage,
-      completed,
-      last_watched_at: new Date().toISOString(),
-    };
+    const res = await pool.query(
+      `
+      INSERT INTO watch_history (user_id, movie_id, progress_seconds, duration_seconds, percentage, completed, last_watched_at)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      ON CONFLICT (user_id, movie_id) 
+      DO UPDATE SET 
+        progress_seconds = EXCLUDED.progress_seconds,
+        duration_seconds = EXCLUDED.duration_seconds,
+        percentage = EXCLUDED.percentage,
+        completed = EXCLUDED.completed,
+        last_watched_at = NOW()
+      RETURNING *;
+    `,
+      [userId, movieId, progressSeconds, durationSeconds, percentage, completed]
+    );
 
-    if (existingIdx !== -1) {
-      userHist[existingIdx] = updatedRecord;
-    } else {
-      userHist.unshift(updatedRecord);
-    }
-
-    saveStore(store);
-    return updatedRecord;
+    return res.rows[0];
   }
 
   static async getUserWatchHistory(userId: string): Promise<WatchHistory[]> {
-    const store = loadStore();
-    const userHist = store.watchHistory[userId] || [];
-    return userHist.map((h) => ({
-      ...h,
-      movie: store.movies.find((m) => m.id === h.movie_id),
-    }));
+    try {
+      const pool = await this.getClient();
+      const res = await pool.query(
+        `
+        SELECT wh.*, 
+          json_build_object(
+            'id', m.id,
+            'title', m.title,
+            'poster_path', m.poster_path,
+            'backdrop_path', m.backdrop_path,
+            'duration', m.duration,
+            'resolution', m.resolution
+          ) as movie
+        FROM watch_history wh
+        JOIN movies m ON wh.movie_id = m.id
+        WHERE wh.user_id = $1
+        ORDER BY wh.last_watched_at DESC;
+      `,
+        [userId]
+      );
+      return res.rows;
+    } catch (err) {
+      console.error("Error fetching watch history:", err);
+      return [];
+    }
   }
 
   static async toggleFavorite(userId: string, movieId: string): Promise<boolean> {
-    const store = loadStore();
-    if (!store.favorites[userId]) {
-      store.favorites[userId] = [];
-    }
+    const pool = await this.getClient();
+    const check = await pool.query(`SELECT 1 FROM favorites WHERE user_id = $1 AND movie_id = $2;`, [
+      userId,
+      movieId,
+    ]);
 
-    const favs = store.favorites[userId];
-    const idx = favs.indexOf(movieId);
-    let isFav = false;
-
-    if (idx !== -1) {
-      favs.splice(idx, 1);
+    if (check.rows.length > 0) {
+      await pool.query(`DELETE FROM favorites WHERE user_id = $1 AND movie_id = $2;`, [userId, movieId]);
+      return false;
     } else {
-      favs.push(movieId);
-      isFav = true;
+      await pool.query(`INSERT INTO favorites (user_id, movie_id) VALUES ($1, $2);`, [userId, movieId]);
+      return true;
     }
-
-    saveStore(store);
-    return isFav;
   }
 
   static async getUserFavorites(userId: string): Promise<Movie[]> {
-    const store = loadStore();
-    const favIds = store.favorites[userId] || [];
-    return store.movies.filter((m) => favIds.includes(m.id));
+    try {
+      const pool = await this.getClient();
+      const res = await pool.query(
+        `
+        SELECT m.* 
+        FROM favorites f
+        JOIN movies m ON f.movie_id = m.id
+        WHERE f.user_id = $1
+        ORDER BY f.created_at DESC;
+      `,
+        [userId]
+      );
+      return res.rows;
+    } catch (err) {
+      console.error("Error fetching user favorites:", err);
+      return [];
+    }
   }
 
   static async getStorageStats() {
-    const store = loadStore();
-    const totalMovies = store.movies.length;
-    const totalSizeBytes = store.movies.reduce((acc, m) => acc + (m.file_size || 0), 0);
-    const totalDurationSeconds = store.movies.reduce((acc, m) => acc + (m.duration || 0), 0);
+    try {
+      const pool = await this.getClient();
+      const res = await pool.query(`
+        SELECT 
+          COUNT(*)::int as total_movies,
+          COALESCE(SUM(file_size), 0)::bigint as total_size_bytes,
+          COALESCE(SUM(duration), 0)::real as total_duration_seconds
+        FROM movies;
+      `);
+      const row = res.rows[0] || {};
+      const totalMovies = row.total_movies || 0;
+      const totalSizeBytes = Number(row.total_size_bytes || 0);
+      const totalDurationSeconds = Number(row.total_duration_seconds || 0);
 
-    return {
-      totalMovies,
-      totalSizeBytes,
-      totalSizeGB: (totalSizeBytes / (1024 * 1024 * 1024)).toFixed(2),
-      totalHours: (totalDurationSeconds / 3600).toFixed(1),
-    };
+      return {
+        totalMovies,
+        totalSizeBytes,
+        totalSizeGB: (totalSizeBytes / (1024 * 1024 * 1024)).toFixed(2),
+        totalHours: (totalDurationSeconds / 3600).toFixed(1),
+      };
+    } catch (err) {
+      console.error("Error fetching storage stats:", err);
+      return {
+        totalMovies: 0,
+        totalSizeBytes: 0,
+        totalSizeGB: "0.00",
+        totalHours: "0.0",
+      };
+    }
   }
 }

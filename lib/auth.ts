@@ -9,6 +9,7 @@ export interface AuthUser {
 }
 
 const LOCAL_USER_KEY = "cinestream_current_user";
+export const DEMO_ADMIN_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
 
 export class AuthService {
   static getCurrentUserSync(): AuthUser | null {
@@ -19,9 +20,8 @@ export class AuthService {
     } catch {
       // ignore
     }
-    // Default admin user for smooth out-of-the-box local testing
     return {
-      id: "u-admin-01",
+      id: DEMO_ADMIN_ID,
       email: "admin@cinestream.local",
       username: "AdminUser",
       avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop",
@@ -30,7 +30,7 @@ export class AuthService {
   }
 
   static async getCurrentUser(): Promise<AuthUser | null> {
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://placeholder-project.supabase.co") {
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")) {
       try {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -52,7 +52,7 @@ export class AuthService {
   }
 
   static async loginWithEmail(email: string, password?: string): Promise<AuthUser> {
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://placeholder-project.supabase.co") {
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -74,10 +74,9 @@ export class AuthService {
       }
     }
 
-    // Local authentication fallback for instant demo testing
     const isAdmin = email.includes("admin");
     const mockUser: AuthUser = {
-      id: isAdmin ? "u-admin-01" : `u-${Date.now()}`,
+      id: isAdmin ? DEMO_ADMIN_ID : "b1ffbc99-9c0b-4ef8-bb6d-6bb9bd380a22",
       email,
       username: email.split("@")[0],
       avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop",
@@ -91,7 +90,7 @@ export class AuthService {
   }
 
   static async loginWithGoogle() {
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://placeholder-project.supabase.co") {
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       const supabase = createClient();
       await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -100,9 +99,8 @@ export class AuthService {
         },
       });
     } else {
-      // Mock Google login
       const googleUser: AuthUser = {
-        id: "u-google-01",
+        id: "c2ffbc99-9c0b-4ef8-bb6d-6bb9bd380a33",
         email: "google.user@gmail.com",
         username: "GoogleUser",
         avatar_url: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop",
@@ -116,7 +114,7 @@ export class AuthService {
   }
 
   static async logout() {
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== "https://placeholder-project.supabase.co") {
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       const supabase = createClient();
       await supabase.auth.signOut();
     }
