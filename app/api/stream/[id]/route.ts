@@ -10,15 +10,62 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    // 1. Check PostgreSQL BYTEA storage table 'movie_files' first
+    const dbFile = await MovieService.getMovieFile(id);
+
+    if (dbFile && dbFile.file_data && dbFile.file_data.length > 0) {
+      const fileBuffer = dbFile.file_data;
+      const fileSize = fileBuffer.length;
+      const mimeType = dbFile.mime_type || "video/mp4";
+      const range = request.headers.get("range");
+
+      if (range) {
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : Math.min(start + 4 * 1024 * 1024 - 1, fileSize - 1);
+
+        if (start >= fileSize) {
+          return new NextResponse(null, {
+            status: 416,
+            headers: { "Content-Range": `bytes */${fileSize}` },
+          });
+        }
+
+        const chunksize = end - start + 1;
+        const chunk = fileBuffer.subarray(start, end + 1);
+
+        return new NextResponse(chunk, {
+          status: 206,
+          headers: {
+            "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+            "Accept-Ranges": "bytes",
+            "Content-Length": chunksize.toString(),
+            "Content-Type": mimeType,
+          },
+        });
+      } else {
+        return new NextResponse(fileBuffer, {
+          status: 200,
+          headers: {
+            "Content-Length": fileSize.toString(),
+            "Content-Type": mimeType,
+            "Accept-Ranges": "bytes",
+          },
+        });
+      }
+    }
+
+    // 2. Fallback to movie record lookup
     const movie = await MovieService.getMovieById(id);
 
     if (!movie || !movie.movie_path) {
-      return new NextResponse("Movie or media stream path not found", { status: 404 });
+      return new NextResponse("Movie media stream not found in PostgreSQL database", { status: 404 });
     }
 
     const range = request.headers.get("range");
 
-    // Case A: Movie path is a remote Supabase Storage / Cloud URL
+    // Case A: Remote Supabase Storage URL
     if (movie.movie_path.startsWith("http://") || movie.movie_path.startsWith("https://")) {
       const headers: Record<string, string> = {};
       if (range) headers["Range"] = range;
@@ -42,19 +89,14 @@ export async function GET(
       });
     }
 
-    // Case B: Local storage fallback if file path is stored
+    // Case B: Local storage fallback
     let targetPath = movie.movie_path;
     if (!fs.existsSync(targetPath)) {
-      const storageMoviesPath = path.join(process.cwd(), "storage", "movies", path.basename(movie.movie_path));
-      if (fs.existsSync(storageMoviesPath)) {
-        targetPath = storageMoviesPath;
+      const tempPath = path.join(os.tmpdir(), path.basename(movie.movie_path));
+      if (fs.existsSync(tempPath)) {
+        targetPath = tempPath;
       } else {
-        const tempPath = path.join(os.tmpdir(), path.basename(movie.movie_path));
-        if (fs.existsSync(tempPath)) {
-          targetPath = tempPath;
-        } else {
-          return new NextResponse("Video stream file not found on storage server", { status: 404 });
-        }
+        return new NextResponse("Video file not found", { status: 404 });
       }
     }
 

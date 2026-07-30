@@ -35,17 +35,6 @@ export async function POST(request: NextRequest) {
     // Run ffprobe analysis
     const metadata = await extractMediaMetadata(tempVideoPath);
 
-    // Upload video file to Supabase Storage bucket 'movies'
-    const storageVideoUrl = await uploadFileToSupabaseStorage(
-      "movies",
-      safeVideoName,
-      videoBuffer,
-      videoFile.type || "video/mp4"
-    );
-
-    // Fallback URL if storage bucket or URL is returned
-    const finalMoviePath = storageVideoUrl || `/api/stream/${safeVideoName}`;
-
     // Process poster file if provided
     let finalPosterPath = "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop";
 
@@ -64,7 +53,6 @@ export async function POST(request: NextRequest) {
       if (storagePosterUrl) {
         finalPosterPath = storagePosterUrl;
       } else {
-        // Convert to Base64 data URL if storage upload is unavailable
         const mime = posterFile.type || "image/jpeg";
         finalPosterPath = `data:${mime};base64,${posterBuffer.toString("base64")}`;
       }
@@ -72,6 +60,7 @@ export async function POST(request: NextRequest) {
 
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
+    // 1. Add movie metadata record to PostgreSQL database
     const newMovie = await MovieService.addMovie({
       title,
       slug: `${slug}-${Date.now().toString(36)}`,
@@ -83,7 +72,7 @@ export async function POST(request: NextRequest) {
       language: "English",
       poster_path: finalPosterPath,
       backdrop_path: finalPosterPath,
-      movie_path: finalMoviePath,
+      movie_path: "pending",
       duration: metadata.duration,
       file_size: videoBuffer.length,
       aspect_ratio: metadata.aspectRatio,
@@ -95,6 +84,19 @@ export async function POST(request: NextRequest) {
         slug: g.toLowerCase().replace(/\s+/g, "-"),
       })),
     });
+
+    // 2. Save video binary directly into PostgreSQL table 'movie_files'
+    const streamUrl = await MovieService.saveMovieFile(
+      newMovie.id,
+      safeVideoName,
+      videoFile.type || "video/mp4",
+      videoBuffer
+    );
+
+    newMovie.movie_path = streamUrl;
+
+    // Optional secondary upload to Supabase Storage bucket
+    uploadFileToSupabaseStorage("movies", safeVideoName, videoBuffer, videoFile.type || "video/mp4").catch(() => {});
 
     return NextResponse.json({ success: true, movie: newMovie });
   } catch (err: any) {

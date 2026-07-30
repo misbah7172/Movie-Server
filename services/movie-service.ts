@@ -160,7 +160,6 @@ export class MovieService {
     if (movie.genres && movie.genres.length > 0) {
       for (const g of movie.genres) {
         let genreId = g.id;
-        // Ensure genre exists in genres table
         const genreRes = await pool.query(
           `INSERT INTO genres (name, slug) VALUES ($1, $2) ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name RETURNING id;`,
           [g.name || g.slug, g.slug || g.id]
@@ -174,6 +173,53 @@ export class MovieService {
     }
 
     return insertedMovie;
+  }
+
+  static async saveMovieFile(
+    movieId: string,
+    filename: string,
+    mimeType: string,
+    fileBuffer: Buffer
+  ): Promise<string> {
+    const pool = await this.getClient();
+    const res = await pool.query(
+      `
+      INSERT INTO movie_files (movie_id, filename, mime_type, file_data)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id;
+    `,
+      [movieId, filename, mimeType, fileBuffer]
+    );
+    const fileId = res.rows[0].id;
+
+    // Update movie record movie_path to point to this PostgreSQL stream route
+    const streamUrl = `/api/stream/${movieId}`;
+    await pool.query(`UPDATE movies SET movie_path = $1 WHERE id = $2;`, [streamUrl, movieId]);
+
+    return streamUrl;
+  }
+
+  static async getMovieFile(
+    idOrMovieId: string
+  ): Promise<{ filename: string; mime_type: string; file_data: Buffer } | null> {
+    try {
+      const pool = await this.getClient();
+      const res = await pool.query(
+        `
+        SELECT filename, mime_type, file_data
+        FROM movie_files
+        WHERE movie_id::text = $1 OR id::text = $1
+        ORDER BY created_at DESC
+        LIMIT 1;
+      `,
+        [idOrMovieId]
+      );
+      if (res.rows.length === 0) return null;
+      return res.rows[0];
+    } catch (err) {
+      console.error("Error fetching movie file binary from PostgreSQL:", err);
+      return null;
+    }
   }
 
   static async updateMovie(id: string, updates: Partial<Movie>): Promise<Movie | null> {

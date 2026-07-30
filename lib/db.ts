@@ -29,6 +29,19 @@ export async function initPostgresDatabase() {
         const sql = fs.readFileSync(migrationPath, "utf-8");
         await client.query(sql);
       }
+
+      // Create movie_files table for storing video binaries directly in PostgreSQL
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS movie_files (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          movie_id UUID REFERENCES movies(id) ON DELETE CASCADE,
+          filename TEXT NOT NULL,
+          mime_type TEXT NOT NULL DEFAULT 'video/mp4',
+          file_data BYTEA NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
+
       isInitialized = true;
     } finally {
       client.release();
