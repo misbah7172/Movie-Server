@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { Navbar } from "../../components/layout/navbar";
-import { Settings } from "lucide-react";
+import { Settings, Database } from "lucide-react";
 
 export default function SettingsPage() {
   const [autoplay, setAutoplay] = useState(true);
   const [subtitleLang, setSubtitleLang] = useState("en");
   const [playbackSpeed, setPlaybackSpeed] = useState("1");
-  const [storagePath, setStoragePath] = useState("/storage/movies");
+  const [storageProvider, setStorageProvider] = useState("Supabase PostgreSQL & Cloud Storage");
   const [saved, setSaved] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
@@ -28,7 +28,7 @@ export default function SettingsPage() {
             <span>Platform <span className="text-[#E50914]">Settings</span></span>
           </h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Configure player behavior, default subtitles, and local storage paths
+            Configure player behavior, default subtitles, and cloud database storage
           </p>
         </div>
 
@@ -81,12 +81,15 @@ export default function SettingsPage() {
           </div>
 
           <div className="py-3 border-b border-zinc-800 space-y-2">
-            <p className="font-bold text-white text-sm">Local Storage Path</p>
-            <p className="text-xs text-zinc-400">Root folder on media server where video files are located</p>
+            <div className="flex items-center space-x-2">
+              <Database className="w-4 h-4 text-[#E50914]" />
+              <p className="font-bold text-white text-sm">Media Storage Engine</p>
+            </div>
+            <p className="text-xs text-zinc-400">Cloud database and bucket storage for video streams and poster assets</p>
             <input
               type="text"
-              value={storagePath}
-              onChange={(e) => setStoragePath(e.target.value)}
+              value={storageProvider}
+              onChange={(e) => setStorageProvider(e.target.value)}
               className="w-full p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-xs font-mono text-white"
             />
           </div>

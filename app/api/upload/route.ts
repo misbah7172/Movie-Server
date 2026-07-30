@@ -1,83 +1,113 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MovieService } from "../../../services/movie-service";
 import { extractMediaMetadata } from "../../../lib/ffmpeg/probe";
+import { uploadFileToSupabaseStorage } from "../../../lib/storage";
 import fs from "fs";
 import path from "path";
+import os from "os";
 
 export async function POST(request: NextRequest) {
+  let tempVideoPath: string | null = null;
+  let tempPosterPath: string | null = null;
+
   try {
     const formData = await request.formData();
-    const title = formData.get("title") as string;
-    const description = formData.get("description") as string || "";
-    const releaseYear = parseInt(formData.get("releaseYear") as string || "2024", 10);
-    const genreIds = (formData.get("genres") as string || "").split(",").filter(Boolean);
+    const videoFile = formData.get("video") as File | null;
+    const posterFile = formData.get("poster") as File | null;
+    const title = (formData.get("title") as string) || "Untitled Movie";
+    const description = (formData.get("description") as string) || "";
+    const releaseYear = parseInt((formData.get("release_year") as string) || "2024", 10);
+    const genreNames = (formData.get("genres") as string)?.split(",").map((g) => g.trim()) || ["Sci-Fi"];
 
-    const movieFile = formData.get("movieFile") as File | null;
-    const posterFile = formData.get("posterFile") as File | null;
-    const backdropFile = formData.get("backdropFile") as File | null;
-
-    if (!title || !movieFile) {
-      return NextResponse.json({ error: "Movie title and video file are required" }, { status: 400 });
+    if (!videoFile) {
+      return NextResponse.json({ error: "No video file provided" }, { status: 400 });
     }
 
-    // Sanitize filename to prevent path traversal
-    const safeTitle = title.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
-    const videoExt = path.extname(movieFile.name) || ".mp4";
-    const videoFileName = `${safeTitle}-${Date.now()}${videoExt}`;
-    const videoRelativePath = `/storage/movies/${videoFileName}`;
-    const videoFullPath = path.join(process.cwd(), "storage", "movies", videoFileName);
+    const videoBytes = await videoFile.arrayBuffer();
+    const videoBuffer = Buffer.from(videoBytes);
+    const safeVideoName = `${Date.now()}_${videoFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
 
-    // Save video file to disk
-    const videoBuffer = Buffer.from(await movieFile.arrayBuffer());
-    fs.writeFileSync(videoFullPath, videoBuffer);
+    // Write temp video file to OS temp dir (C: drive with 50+ GB free) for ffprobe analysis
+    const tempDir = os.tmpdir();
+    tempVideoPath = path.join(tempDir, safeVideoName);
+    fs.writeFileSync(tempVideoPath, videoBuffer);
 
-    // Save Poster if uploaded
-    let posterRelativePath: string | null = null;
-    if (posterFile) {
-      const posterExt = path.extname(posterFile.name) || ".jpg";
-      const posterFileName = `${safeTitle}-poster-${Date.now()}${posterExt}`;
-      posterRelativePath = `/storage/posters/${posterFileName}`;
-      const posterFullPath = path.join(process.cwd(), "storage", "posters", posterFileName);
-      fs.writeFileSync(posterFullPath, Buffer.from(await posterFile.arrayBuffer()));
+    // Run ffprobe analysis
+    const metadata = await extractMediaMetadata(tempVideoPath);
+
+    // Upload video file to Supabase Storage bucket 'movies'
+    const storageVideoUrl = await uploadFileToSupabaseStorage(
+      "movies",
+      safeVideoName,
+      videoBuffer,
+      videoFile.type || "video/mp4"
+    );
+
+    // Fallback URL if storage bucket or URL is returned
+    const finalMoviePath = storageVideoUrl || `/api/stream/${safeVideoName}`;
+
+    // Process poster file if provided
+    let finalPosterPath = "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop";
+
+    if (posterFile && posterFile.size > 0) {
+      const posterBytes = await posterFile.arrayBuffer();
+      const posterBuffer = Buffer.from(posterBytes);
+      const safePosterName = `${Date.now()}_${posterFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+
+      const storagePosterUrl = await uploadFileToSupabaseStorage(
+        "posters",
+        safePosterName,
+        posterBuffer,
+        posterFile.type || "image/jpeg"
+      );
+
+      if (storagePosterUrl) {
+        finalPosterPath = storagePosterUrl;
+      } else {
+        // Convert to Base64 data URL if storage upload is unavailable
+        const mime = posterFile.type || "image/jpeg";
+        finalPosterPath = `data:${mime};base64,${posterBuffer.toString("base64")}`;
+      }
     }
 
-    // Save Backdrop if uploaded
-    let backdropRelativePath: string | null = null;
-    if (backdropFile) {
-      const backdropExt = path.extname(backdropFile.name) || ".jpg";
-      const backdropFileName = `${safeTitle}-backdrop-${Date.now()}${backdropExt}`;
-      backdropRelativePath = `/storage/backdrops/${backdropFileName}`;
-      const backdropFullPath = path.join(process.cwd(), "storage", "backdrops", backdropFileName);
-      fs.writeFileSync(backdropFullPath, Buffer.from(await backdropFile.arrayBuffer()));
-    }
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-    // Automatically run ffprobe metadata extraction pipeline
-    const meta = await extractMediaMetadata(videoFullPath);
-
-    // Add movie to database store
-    const newDbMovie = await MovieService.addMovie({
+    const newMovie = await MovieService.addMovie({
       title,
-      slug: safeTitle,
+      slug: `${slug}-${Date.now().toString(36)}`,
       description,
       release_year: releaseYear,
-      runtime: meta.runtime,
-      resolution: meta.resolution,
-      codec: meta.codec,
+      runtime: metadata.runtime,
+      resolution: metadata.resolution,
+      codec: metadata.codec,
       language: "English",
-      poster_path: posterRelativePath || "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop",
-      backdrop_path: backdropRelativePath || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920&auto=format&fit=crop",
-      movie_path: videoRelativePath,
-      duration: meta.duration,
+      poster_path: finalPosterPath,
+      backdrop_path: finalPosterPath,
+      movie_path: finalMoviePath,
+      duration: metadata.duration,
       file_size: videoBuffer.length,
-      aspect_ratio: meta.aspectRatio,
-      is_featured: false,
+      aspect_ratio: metadata.aspectRatio,
+      is_featured: true,
       rating_average: 5.0,
-      genres: genreIds.map((id) => ({ id, name: id, slug: id })),
+      genres: genreNames.map((g) => ({
+        id: g.toLowerCase().replace(/\s+/g, "-"),
+        name: g,
+        slug: g.toLowerCase().replace(/\s+/g, "-"),
+      })),
     });
 
-    return NextResponse.json({ success: true, movie: newDbMovie, metadata: meta });
-  } catch (error: any) {
-    console.error("Upload API Error:", error);
-    return NextResponse.json({ error: error.message || "Failed to process upload" }, { status: 500 });
+    return NextResponse.json({ success: true, movie: newMovie });
+  } catch (err: any) {
+    console.error("Upload handler error:", err);
+    return NextResponse.json({ error: err.message || "Failed to upload movie" }, { status: 500 });
+  } finally {
+    // Clean up temporary OS files
+    if (tempVideoPath && fs.existsSync(tempVideoPath)) {
+      try {
+        fs.unlinkSync(tempVideoPath);
+      } catch (e) {
+        console.warn("Failed to clean up temp video file:", e);
+      }
+    }
   }
 }

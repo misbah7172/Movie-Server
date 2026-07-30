@@ -2,25 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { MovieService } from "../../../../services/movie-service";
 import fs from "fs";
 import path from "path";
-
-// Helper to map file extensions to mime types
-function getMimeType(filePath: string): string {
-  const ext = path.extname(filePath).toLowerCase();
-  switch (ext) {
-    case ".mp4":
-      return "video/mp4";
-    case ".mkv":
-      return "video/x-matroska";
-    case ".webm":
-      return "video/webm";
-    case ".mov":
-      return "video/quicktime";
-    case ".avi":
-      return "video/x-msvideo";
-    default:
-      return "video/mp4";
-  }
-}
+import os from "os";
 
 export async function GET(
   request: NextRequest,
@@ -28,108 +10,110 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-
-    // Look up movie metadata
     const movie = await MovieService.getMovieById(id);
-    if (!movie) {
-      return NextResponse.json({ error: "Movie not found" }, { status: 404 });
+
+    if (!movie || !movie.movie_path) {
+      return new NextResponse("Movie or media stream path not found", { status: 404 });
     }
 
-    // Resolve target video file path safely within project storage
-    let relativePath = movie.movie_path;
-    if (relativePath.startsWith("/")) {
-      relativePath = relativePath.substring(1);
-    }
-    const fullPath = path.join(process.cwd(), relativePath);
-
-    // Verify file existence on disk
-    if (!fs.existsSync(fullPath)) {
-      return NextResponse.json(
-        { error: "Video file missing on storage server", path: movie.movie_path },
-        { status: 404 }
-      );
-    }
-
-    const stat = fs.statSync(fullPath);
-    const fileSize = stat.size;
-    const mimeType = getMimeType(fullPath);
-
-    // Read HTTP Range Header
     const range = request.headers.get("range");
 
-    if (!range) {
-      // Send full file headers if no range requested (rare for video player)
-      const headers = new Headers();
-      headers.set("Content-Type", mimeType);
-      headers.set("Content-Length", fileSize.toString());
-      headers.set("Accept-Ranges", "bytes");
+    // Case A: Movie path is a remote Supabase Storage / Cloud URL
+    if (movie.movie_path.startsWith("http://") || movie.movie_path.startsWith("https://")) {
+      const headers: Record<string, string> = {};
+      if (range) headers["Range"] = range;
 
-      const nodeStream = fs.createReadStream(fullPath);
-      const webStream = new ReadableStream({
+      const remoteRes = await fetch(movie.movie_path, { headers });
+      const responseHeaders = new Headers();
+
+      responseHeaders.set("Content-Type", remoteRes.headers.get("content-type") || "video/mp4");
+      responseHeaders.set("Accept-Ranges", "bytes");
+
+      if (remoteRes.headers.get("content-range")) {
+        responseHeaders.set("Content-Range", remoteRes.headers.get("content-range")!);
+      }
+      if (remoteRes.headers.get("content-length")) {
+        responseHeaders.set("Content-Length", remoteRes.headers.get("content-length")!);
+      }
+
+      return new NextResponse(remoteRes.body, {
+        status: remoteRes.status,
+        headers: responseHeaders,
+      });
+    }
+
+    // Case B: Local storage fallback if file path is stored
+    let targetPath = movie.movie_path;
+    if (!fs.existsSync(targetPath)) {
+      const storageMoviesPath = path.join(process.cwd(), "storage", "movies", path.basename(movie.movie_path));
+      if (fs.existsSync(storageMoviesPath)) {
+        targetPath = storageMoviesPath;
+      } else {
+        const tempPath = path.join(os.tmpdir(), path.basename(movie.movie_path));
+        if (fs.existsSync(tempPath)) {
+          targetPath = tempPath;
+        } else {
+          return new NextResponse("Video stream file not found on storage server", { status: 404 });
+        }
+      }
+    }
+
+    const stat = fs.statSync(targetPath);
+    const fileSize = stat.size;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : Math.min(start + 4 * 1024 * 1024 - 1, fileSize - 1);
+
+      if (start >= fileSize) {
+        return new NextResponse(null, {
+          status: 416,
+          headers: { "Content-Range": `bytes */${fileSize}` },
+        });
+      }
+
+      const chunksize = end - start + 1;
+      const fileStream = fs.createReadStream(targetPath, { start, end });
+
+      const stream = new ReadableStream({
         start(controller) {
-          nodeStream.on("data", (chunk) => controller.enqueue(chunk));
-          nodeStream.on("end", () => controller.close());
-          nodeStream.on("error", (err) => controller.error(err));
-        },
-        cancel() {
-          nodeStream.destroy();
+          fileStream.on("data", (chunk) => controller.enqueue(chunk));
+          fileStream.on("end", () => controller.close());
+          fileStream.on("error", (err) => controller.error(err));
         },
       });
 
-      return new NextResponse(webStream, { headers });
-    }
-
-    // Parse Range Header (e.g. "bytes=1048576-")
-    const parts = range.replace(/bytes=/, "").split("-");
-    const start = parseInt(parts[0], 10);
-    
-    // Chunk size: default 4MB chunks for fast responsive seeking
-    const CHUNK_SIZE = 4 * 1024 * 1024;
-    let end = parts[1] ? parseInt(parts[1], 10) : start + CHUNK_SIZE - 1;
-
-    if (end >= fileSize) {
-      end = fileSize - 1;
-    }
-
-    if (start >= fileSize || start < 0) {
-      return new NextResponse(null, {
-        status: 416, // Range Not Satisfiable
+      return new NextResponse(stream, {
+        status: 206,
         headers: {
-          "Content-Range": `bytes */${fileSize}`,
+          "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+          "Accept-Ranges": "bytes",
+          "Content-Length": chunksize.toString(),
+          "Content-Type": "video/mp4",
+        },
+      });
+    } else {
+      const fileStream = fs.createReadStream(targetPath);
+      const stream = new ReadableStream({
+        start(controller) {
+          fileStream.on("data", (chunk) => controller.enqueue(chunk));
+          fileStream.on("end", () => controller.close());
+          fileStream.on("error", (err) => controller.error(err));
+        },
+      });
+
+      return new NextResponse(stream, {
+        status: 200,
+        headers: {
+          "Content-Length": fileSize.toString(),
+          "Content-Type": "video/mp4",
+          "Accept-Ranges": "bytes",
         },
       });
     }
-
-    const contentLength = end - start + 1;
-    const nodeStream = fs.createReadStream(fullPath, { start, end });
-
-    const webStream = new ReadableStream({
-      start(controller) {
-        nodeStream.on("data", (chunk) => controller.enqueue(chunk));
-        nodeStream.on("end", () => controller.close());
-        nodeStream.on("error", (err) => controller.error(err));
-      },
-      cancel() {
-        nodeStream.destroy();
-      },
-    });
-
-    const headers = new Headers();
-    headers.set("Content-Range", `bytes ${start}-${end}/${fileSize}`);
-    headers.set("Accept-Ranges", "bytes");
-    headers.set("Content-Length", contentLength.toString());
-    headers.set("Content-Type", mimeType);
-    headers.set("Cache-Control", "no-cache, private");
-
-    return new NextResponse(webStream, {
-      status: 206, // Partial Content
-      headers,
-    });
-  } catch (error: any) {
-    console.error("Streaming route error:", error);
-    return NextResponse.json(
-      { error: "Internal server streaming error" },
-      { status: 500 }
-    );
+  } catch (err: any) {
+    console.error("Streaming endpoint error:", err);
+    return new NextResponse(err.message || "Internal server streaming error", { status: 500 });
   }
 }
