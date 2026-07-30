@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Navbar } from "../../components/layout/Navbar";
 import { Movie } from "../../types/database";
 import { extractVideoMetadataInBrowser } from "../../lib/video-metadata";
+import { AuthService, AuthUser, ADMIN_EMAIL } from "../../lib/auth";
 import {
   Film,
   HardDrive,
@@ -11,10 +12,14 @@ import {
   Trash2,
   Plus,
   Clock,
+  ShieldAlert,
+  LogIn,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 export default function AdminDashboardPage() {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [movies, setMovies] = useState<Movie[]>([]);
   const [stats, setStats] = useState({ totalMovies: 0, totalSizeGB: "0", totalHours: "0" });
   const [loading, setLoading] = useState(true);
@@ -29,7 +34,13 @@ export default function AdminDashboardPage() {
   const [uploadStatus, setUploadStatus] = useState("");
 
   useEffect(() => {
-    loadAdminData();
+    const user = AuthService.getCurrentUserSync();
+    setCurrentUser(user);
+    if (user && AuthService.isAdmin(user)) {
+      loadAdminData();
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   const loadAdminData = async () => {
@@ -121,6 +132,37 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // RBAC Access Control Guard
+  if (!loading && (!currentUser || !AuthService.isAdmin(currentUser))) {
+    return (
+      <div className="min-h-screen bg-[#08080a] text-white">
+        <Navbar />
+        <main className="max-w-2xl mx-auto px-4 pt-36 pb-16 text-center space-y-6">
+          <div className="p-16 glass-panel rounded-3xl border border-red-500/30 space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-red-950/60 border border-red-500/50 text-red-400 flex items-center justify-center mx-auto shadow-2xl">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-black text-white uppercase tracking-tight">
+              Access Restricted (Admin Only)
+            </h2>
+            <p className="text-sm text-zinc-400">
+              Role-Based Access Control: The Admin Dashboard is restricted to authorized administrators. Log in with the preset admin credentials (<span className="text-white font-semibold">{ADMIN_EMAIL}</span>) to manage storage.
+            </p>
+            <div className="pt-4">
+              <Link
+                href="/login"
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-[#E50914] hover:bg-[#B81D24] text-white font-bold text-sm rounded-xl shadow-lg shadow-[#E50914]/40"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Log In as Admin</span>
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#08080a] text-white">
       <Navbar />
@@ -128,8 +170,11 @@ export default function AdminDashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16 space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white uppercase">
-              Admin <span className="text-[#E50914]">Dashboard</span>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white uppercase flex items-center space-x-3">
+              <span>Admin <span className="text-[#E50914]">Dashboard</span></span>
+              <span className="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-amber-400 text-xs font-bold uppercase">
+                Role: Admin
+              </span>
             </h1>
             <p className="text-sm text-zinc-400 mt-1">
               Manage your personal media server storage, uploads, and metadata

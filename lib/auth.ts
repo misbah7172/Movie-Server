@@ -9,6 +9,7 @@ export interface AuthUser {
 }
 
 const LOCAL_USER_KEY = "cinestream_current_user";
+export const ADMIN_EMAIL = "misbah244176@gmail.com";
 export const DEMO_ADMIN_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
 
 export class AuthService {
@@ -20,67 +21,65 @@ export class AuthService {
     } catch {
       // ignore
     }
+    // Default preset admin user if no session stored
     return {
       id: DEMO_ADMIN_ID,
-      email: "admin@cinestream.local",
-      username: "AdminUser",
+      email: ADMIN_EMAIL,
+      username: "Misbah (Admin)",
       avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop",
       role: "admin",
     };
   }
 
-  static async getCurrentUser(): Promise<AuthUser | null> {
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder")) {
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          return {
-            id: user.id,
-            email: user.email || "",
-            username: user.user_metadata?.username || user.email?.split("@")[0] || "User",
-            avatar_url: user.user_metadata?.avatar_url,
-            role: user.user_metadata?.role || "user",
-          };
-        }
-      } catch (err) {
-        console.warn("Supabase auth check fallback:", err);
-      }
-    }
-
-    return this.getCurrentUserSync();
+  static isAdmin(user: AuthUser | null): boolean {
+    if (!user) return false;
+    return user.role === "admin" || user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
   }
 
   static async loginWithEmail(email: string, password?: string): Promise<AuthUser> {
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password: password || "",
-      });
-      if (error) throw error;
-      if (data.user) {
-        const user: AuthUser = {
-          id: data.user.id,
-          email: data.user.email || "",
-          username: data.user.user_metadata?.username || email.split("@")[0],
-          avatar_url: data.user.user_metadata?.avatar_url,
-          role: data.user.user_metadata?.role || "user",
-        };
-        if (typeof window !== "undefined") {
-          localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(user));
+    const cleanEmail = email.trim().toLowerCase();
+    const isAdminUser = cleanEmail === ADMIN_EMAIL.toLowerCase();
+
+    // Check credentials for predefined Admin user
+    if (isAdminUser && password && password !== "12345") {
+      throw new Error("Invalid password for Admin account.");
+    }
+
+    if (
+      process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ) {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: password || "12345",
+        });
+        if (!error && data.user) {
+          const user: AuthUser = {
+            id: data.user.id,
+            email: data.user.email || cleanEmail,
+            username: data.user.user_metadata?.username || cleanEmail.split("@")[0],
+            avatar_url: data.user.user_metadata?.avatar_url,
+            role: isAdminUser ? "admin" : (data.user.user_metadata?.role || "user"),
+          };
+          if (typeof window !== "undefined") {
+            localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(user));
+          }
+          return user;
         }
-        return user;
+      } catch (e) {
+        console.warn("Supabase login notice:", e);
       }
     }
 
-    const isAdmin = email.includes("admin");
     const mockUser: AuthUser = {
-      id: isAdmin ? DEMO_ADMIN_ID : "b1ffbc99-9c0b-4ef8-bb6d-6bb9bd380a22",
-      email,
-      username: email.split("@")[0],
+      id: isAdminUser ? DEMO_ADMIN_ID : `usr-${Date.now().toString(36)}`,
+      email: cleanEmail,
+      username: isAdminUser ? "Misbah (Admin)" : cleanEmail.split("@")[0],
       avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop",
-      role: isAdmin ? "admin" : "user",
+      role: isAdminUser ? "admin" : "user",
     };
 
     if (typeof window !== "undefined") {
@@ -89,8 +88,68 @@ export class AuthService {
     return mockUser;
   }
 
+  static async signUpWithEmail(username: string, email: string, password?: string): Promise<AuthUser> {
+    const cleanEmail = email.trim().toLowerCase();
+    const isAdminUser = cleanEmail === ADMIN_EMAIL.toLowerCase();
+
+    if (
+      process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ) {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: password || "12345",
+          options: {
+            data: {
+              username,
+              role: isAdminUser ? "admin" : "user",
+            },
+          },
+        });
+
+        if (error) throw error;
+
+        if (data.user) {
+          const newUser: AuthUser = {
+            id: data.user.id,
+            email: cleanEmail,
+            username,
+            avatar_url: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop",
+            role: isAdminUser ? "admin" : "user",
+          };
+          if (typeof window !== "undefined") {
+            localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(newUser));
+          }
+          return newUser;
+        }
+      } catch (e) {
+        console.warn("Supabase signup notice:", e);
+      }
+    }
+
+    const newUser: AuthUser = {
+      id: isAdminUser ? DEMO_ADMIN_ID : `usr-${Date.now().toString(36)}`,
+      email: cleanEmail,
+      username,
+      avatar_url: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop",
+      role: isAdminUser ? "admin" : "user",
+    };
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(newUser));
+    }
+    return newUser;
+  }
+
   static async loginWithGoogle() {
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (
+      process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ) {
       const supabase = createClient();
       await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -114,7 +173,11 @@ export class AuthService {
   }
 
   static async logout() {
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (
+      process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ) {
       const supabase = createClient();
       await supabase.auth.signOut();
     }
