@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Navbar } from "../../components/layout/navbar";
-import { Movie, Genre } from "@/types/database";
+import { Movie } from "../../types/database";
 import {
   Film,
   HardDrive,
@@ -73,9 +73,12 @@ export default function AdminDashboardPage() {
     const formData = new FormData();
     formData.append("title", uploadTitle);
     formData.append("description", uploadDescription);
+    formData.append("release_year", uploadYear);
     formData.append("releaseYear", uploadYear);
+    formData.append("video", movieFile);
     formData.append("movieFile", movieFile);
     if (posterFile) {
+      formData.append("poster", posterFile);
       formData.append("posterFile", posterFile);
     }
 

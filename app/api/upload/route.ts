@@ -8,18 +8,18 @@ import os from "os";
 
 export async function POST(request: NextRequest) {
   let tempVideoPath: string | null = null;
-  let tempPosterPath: string | null = null;
 
   try {
     const formData = await request.formData();
-    const videoFile = formData.get("video") as File | null;
-    const posterFile = formData.get("poster") as File | null;
+    const videoFile = (formData.get("video") || formData.get("movieFile")) as File | null;
+    const posterFile = (formData.get("poster") || formData.get("posterFile")) as File | null;
     const title = (formData.get("title") as string) || "Untitled Movie";
     const description = (formData.get("description") as string) || "";
-    const releaseYear = parseInt((formData.get("release_year") as string) || "2024", 10);
+    const releaseYearStr = (formData.get("release_year") || formData.get("releaseYear")) as string;
+    const releaseYear = parseInt(releaseYearStr || "2024", 10);
     const genreNames = (formData.get("genres") as string)?.split(",").map((g) => g.trim()) || ["Sci-Fi"];
 
-    if (!videoFile) {
+    if (!videoFile || typeof videoFile === "string" || !(videoFile as any).size) {
       return NextResponse.json({ error: "No video file provided" }, { status: 400 });
     }
 
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     // Process poster file if provided
     let finalPosterPath = "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop";
 
-    if (posterFile && posterFile.size > 0) {
+    if (posterFile && typeof posterFile !== "string" && (posterFile as any).size > 0) {
       const posterBytes = await posterFile.arrayBuffer();
       const posterBuffer = Buffer.from(posterBytes);
       const safePosterName = `${Date.now()}_${posterFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
